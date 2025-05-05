@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mosquitto:
     image: eclipse-mosquitto
@@ -9,11 +7,15 @@ services:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
 
   carro:
-    build: ./Carro
+    build:
+      context: .
+      dockerfile: ./Carro/Dockerfile
     depends_on:
       - mosquitto
 
   servidor:
-    build: ./Servidor
+    build:
+      context: .
+      dockerfile: ./Servidor/Dockerfile
     depends_on:
       - mosquitto

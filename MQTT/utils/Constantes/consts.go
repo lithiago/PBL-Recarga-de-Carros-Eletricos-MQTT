@@ -1,9 +1,8 @@
-package consts
+package Constantes
 
 import (
-	clientemqtt "MQTT/mqttLib/ClienteMQTT"
-	mqttlib "MQTT/mqttLib/Router"
-
+	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
+	mqttlib "MQTT/utils/mqttLib/Router"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 

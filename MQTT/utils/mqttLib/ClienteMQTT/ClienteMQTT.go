@@ -2,7 +2,7 @@ package clientemqtt
 
 import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	mqttlib "MQTT/mqttLib/Router"
+	mqttlib "MQTT/utils/mqttLib/Router"
 )
 
 type MQTTClient struct {

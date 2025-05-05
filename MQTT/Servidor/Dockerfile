@@ -1,12 +1,16 @@
-FROM golang:1.24
+# Etapa de build
+FROM golang:1.24 AS builder
 
 WORKDIR /app
+COPY . .
 
-# Copia TUDO (incluindo go.mod, mqttLib, etc.)
-COPY .. .
+RUN go build -o servidor ./Servidor/server.go
 
-# Entra no diretório do Servidor e compila
-WORKDIR /app/Servidor
-RUN go build -o app server.go
+# Etapa final (imagem enxuta)
+FROM alpine:latest
 
-CMD ["./app"]
+# Copia o binário da etapa anterior
+COPY --from=builder /app/servidor /servidor
+
+# Comando de entrada
+CMD ["/servidor"]

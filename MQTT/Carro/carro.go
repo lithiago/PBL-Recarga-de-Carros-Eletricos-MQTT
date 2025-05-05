@@ -1,10 +1,10 @@
-package Carro
+package main
 
 import (
-	consts "MQTT/conts"
-	clientemqtt "MQTT/mqttLib/ClienteMQTT"
-	router "MQTT/mqttLib/Router"
-	"MQTT/topics"
+	router "MQTT/utils/mqttLib/Router"
+	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
+	topics 	"MQTT/utils/Topicos"
+	consts "MQTT/utils/Constantes"
 	"encoding/json"
 	"fmt"
 )

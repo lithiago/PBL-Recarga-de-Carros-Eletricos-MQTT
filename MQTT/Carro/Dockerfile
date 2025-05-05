@@ -1,12 +1,14 @@
-FROM golang:1.24
+# Etapa de build
+FROM golang:1.24 AS builder
 
 WORKDIR /app
+COPY . .
 
-# Copia TUDO (incluindo go.mod, mqttLib, etc.)
-COPY .. .
+RUN go build -o carro ./Carro/carro.go
 
-# Entra no diretório do Carro e compila
-WORKDIR /app/Carro
-RUN go build -o app carro.go
+# Etapa final
+FROM alpine:latest
 
-CMD ["./app"]
+COPY --from=builder /app/carro /carro
+
+CMD ["/carro"]
