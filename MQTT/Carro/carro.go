@@ -1,0 +1,64 @@
+package Carro
+
+import (
+	consts "MQTT/conts"
+	clientemqtt "MQTT/mqttLib/ClienteMQTT"
+	router "MQTT/mqttLib/Router"
+	"MQTT/topics"
+	"encoding/json"
+	"fmt"
+)
+
+type Carro struct {
+	ID       string                     `json:"id"`
+	Bateria  int                        `json:"bateria"`
+	Clientemqtt clientemqtt.MQTTClient `json:"-"`
+}
+
+func (c *Carro) SolicitarReserva() {
+	topic := topics.CarroRequestReserva(c.ID)
+
+	msg := consts.Mensagem{
+		CarroMQTT: consts.Carro{
+			ID:      c.ID,
+			Bateria: c.Bateria,
+		},
+		Msg: "Carro solicitando reserva!",
+	}
+
+	c.Clientemqtt.Publish(topic, serializarMensagem(msg))
+}
+
+/* 
+func (c *Carro) CancelarReserva() {
+	topic := topics.CarroRequestCancel(c.ID)
+	// publish payload...
+}
+
+func (c *Carro) EnviarStatus() {
+	topic := topics.CarroRequestStatus(c.ID)
+	// publish payload...
+}
+ */ 
+func (c *Carro) AssinarRespostaServidor() {
+	topic := topics.ServerResponseToCar(c.ID)
+	mqttClient := c.Clientemqtt
+	mqttClient.Subscribe(topic)
+	// subscribe...
+}
+
+func serializarMensagem(msg consts.Mensagem) []byte{
+	ConteudoJSON, _ := json.Marshal(msg)
+	return ConteudoJSON
+}
+func main(){
+	routerCarro := router.NewRouter()
+	mqttClient := *clientemqtt.NewClient(string(consts.Broker), routerCarro)
+	carro := Carro{ID: 	"001", Bateria: 100, Clientemqtt: mqttClient}
+	// Registrar handlers para os topicos em que o carro irá assinar
+	routerCarro.Register(topics.ServerResponseToCar(carro.ID), func(payload []byte) {
+		fmt.Println("Resposta do Servidor:", string(payload))
+	})
+	carro.SolicitarReserva()
+
+}
