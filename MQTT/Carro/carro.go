@@ -1,12 +1,13 @@
 package main
 
 import (
-	router "MQTT/utils/mqttLib/Router"
-	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
-	topics 	"MQTT/utils/Topicos"
 	consts "MQTT/utils/Constantes"
+	topics "MQTT/utils/Topicos"
+	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
+	router "MQTT/utils/mqttLib/Router"
 	"encoding/json"
 	"fmt"
+	"log"
 )
 
 type Carro struct {
@@ -52,6 +53,7 @@ func serializarMensagem(msg consts.Mensagem) []byte{
 	return ConteudoJSON
 }
 func main(){
+	log.Println("Funcionando.")
 	routerCarro := router.NewRouter()
 	mqttClient := *clientemqtt.NewClient(string(consts.Broker), routerCarro)
 	carro := Carro{ID: 	"001", Bateria: 100, Clientemqtt: mqttClient}

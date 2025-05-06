@@ -2,15 +2,13 @@
 FROM golang:1.24 AS builder
 
 WORKDIR /app
-COPY . .
+COPY ../ . 
+
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
 
 RUN go build -o servidor ./Servidor/server.go
 
-# Etapa final (imagem enxuta)
+# Etapa final
 FROM alpine:latest
-
-# Copia o binário da etapa anterior
 COPY --from=builder /app/servidor /servidor
-
-# Comando de entrada
 CMD ["/servidor"]

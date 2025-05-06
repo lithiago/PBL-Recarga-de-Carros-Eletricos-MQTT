@@ -1,12 +1,13 @@
 package main
 
 import (
-	router "MQTT/utils/mqttLib/Router"
-	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
-	topics 	"MQTT/utils/Topicos"
 	consts "MQTT/utils/Constantes"
+	topics "MQTT/utils/Topicos"
+	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
+	router "MQTT/utils/mqttLib/Router"
 	"encoding/json"
 	"fmt"
+	"log"
 )
 
 type Servidor struct {
@@ -54,6 +55,7 @@ func (s *Servidor) ObterIdDosCarros () {
 
 func main() {
 	// VOU CHAVEAR O JSON COM O ENDEREÇO DE IP QUE FOI PRÉ-DEFINIDO
+	log.Println("Funcionando.")
 
 	// Aqui eu implemento um roteador que cuidará do roteamento de topicos para evitar situações de multiplos IFs ou switch Cases.
 	routerServidor := router.NewRouter()
