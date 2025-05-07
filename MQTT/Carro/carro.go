@@ -26,12 +26,12 @@ func (c *Carro) SolicitarReserva() {
 		},
 		Msg: "Carro solicitando reserva!",
 	}
-
+	log.Printf("[CARRO] Publicando no tópico: %s", topic)
 	c.Clientemqtt.Publish(topic, serializarMensagem(msg))
 }
 
-/* 
-func (c *Carro) CancelarReserva() {
+
+/* func (c *Carro) CancelarReserva() {
 	topic := topics.CarroRequestCancel(c.ID)
 	// publish payload...
 }
@@ -39,8 +39,7 @@ func (c *Carro) CancelarReserva() {
 func (c *Carro) EnviarStatus() {
 	topic := topics.CarroRequestStatus(c.ID)
 	// publish payload...
-}
- */ 
+}  */
 func (c *Carro) AssinarRespostaServidor() {
 	topic := topics.ServerResponseToCar(c.ID)
 	mqttClient := c.Clientemqtt
@@ -52,15 +51,37 @@ func serializarMensagem(msg consts.Mensagem) []byte{
 	ConteudoJSON, _ := json.Marshal(msg)
 	return ConteudoJSON
 }
+
+/* func desserializarMensagem(mensagem []byte) consts.Mensagem{
+	var msg consts.Mensagem
+		if err := json.Unmarshal(mensagem, &msg); err != nil {
+			fmt.Println("Erro ao decodificar:", err)
+		}
+		return msg
+} */
 func main(){
-	log.Println("Funcionando.")
+	log.Println("[CARRO] Inicializando...")
 	routerCarro := router.NewRouter()
+
 	mqttClient := *clientemqtt.NewClient(string(consts.Broker), routerCarro)
-	carro := Carro{ID: 	"001", Bateria: 100, Clientemqtt: mqttClient}
-	// Registrar handlers para os topicos em que o carro irá assinar
-	routerCarro.Register(topics.ServerResponseToCar(carro.ID), func(payload []byte) {
-		fmt.Println("Resposta do Servidor:", string(payload))
-	})
+
+	// Conectar ao broker com verificação
+	conn := mqttClient.Connect()
+	if conn.Wait() && conn.Error() != nil {
+		log.Fatalf("[CARRO] Erro ao conectar ao broker: %v", conn.Error())
+	}
+
+	carro := Carro{ID: "001", Bateria: 100, Clientemqtt: mqttClient}
+	carro.AssinarRespostaServidor()
 	carro.SolicitarReserva()
+
+	routerCarro.Register(topics.ServerResponseToCar(carro.ID), func(payload []byte) {
+		log.Println("[CARRO] Recebida resposta do servidor")
+
+		fmt.Println("Resposta:", string(payload))
+	})
+
+
+	select {} // Mantém o carro em execução
 
 }

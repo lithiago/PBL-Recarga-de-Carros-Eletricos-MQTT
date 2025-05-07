@@ -1,5 +1,7 @@
 package Router
 
+import "strings"
+
 type HandlerFunc func([]byte)
 
 type Router struct {
@@ -15,7 +17,27 @@ func (r *Router) Register(topic string, handler HandlerFunc) {
 }
 
 func (r *Router) Handle(topic string, payload []byte) {
-	if handler, ok := r.handlers[topic]; ok {
-		handler(payload)
+	for pattern, handler := range r.handlers {
+		if matchTopic(pattern, topic) {
+			handler(payload)
+			return
+		}
 	}
+}
+func matchTopic(pattern, topic string) bool {
+	pp := strings.Split(pattern, "/")
+	tp := strings.Split(topic, "/")
+
+	if len(pp) != len(tp) {
+		return false
+	}
+	for i := range pp {
+		if pp[i] == "+" {
+			continue
+		}
+		if pp[i] != tp[i] {
+			return false
+		}
+	}
+	return true
 }

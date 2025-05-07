@@ -1,0 +1,50 @@
+[
+    [
+        {
+          "id": "PE01",
+          "name": "Posto 1 - Pernambuco",
+          "region": "Pernambuco",
+          "x": 520.0,
+          "y": 90.0,
+          "capacidade": 11,
+          "custoKW": 1.05
+        },
+        {
+          "id": "PE02",
+          "name": "Posto 2 - Pernambuco",
+          "region": "Pernambuco",
+          "x": 540.0,
+          "y": 140.0,
+          "capacidade": 9,
+          "custoKW": 0.95
+        },
+        {
+          "id": "PE03",
+          "name": "Posto 3 - Pernambuco",
+          "region": "Pernambuco",
+          "x": 570.0,
+          "y": 60.0,
+          "capacidade": 13,
+          "custoKW": 1.30
+        },
+        {
+          "id": "PE04",
+          "name": "Posto 4 - Pernambuco",
+          "region": "Pernambuco",
+          "x": 500.0,
+          "y": 20.0,
+          "capacidade": 8,
+          "custoKW": 1.15
+        },
+        {
+          "id": "PE05",
+          "name": "Posto 5 - Pernambuco",
+          "region": "Pernambuco",
+          "x": 560.0,
+          "y": 110.0,
+          "capacidade": 14,
+          "custoKW": 0.90
+        }
+      ]
+      
+]

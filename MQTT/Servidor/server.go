@@ -15,15 +15,15 @@ type Servidor struct {
 	ID     string
 	Regiao string
 	Client clientemqtt.MQTTClient
+	Pontos map[string]*consts.Posto
 }
 
 func (s *Servidor) ResponderCarro(carID string, msg string) {
 	topic := topics.ServerResponseToCar(carID)
+	log.Printf("[SERVIDOR] Respondendo para: %s", topic)
 	s.Client.Publish(topic, []byte(msg))
-	// publish...
 }
 
-/*
 func (s *Servidor) NotificarCarro(carID string) {
 	topic := topics.ServerNotifyCar(s.ID, carID)
 	// publish...
@@ -39,38 +39,46 @@ func (s *Servidor) ComandoCancelarReserva(stationID string) {
 	// publish...
 }
 
-func (s *Servidor) AssinarEventosDoPosto(stationID string) {
+func (s *Servidor) AssinarEventosDoCarro() {
 	topicsToSubscribe := []string{
-		topics.StationStatus(stationID),
-		topics.StationEventStarted(stationID),
-		topics.StationEventFinished(stationID),
+		topics.CarroRequestReserva("+"),
+		topics.CarroRequestStatus("+"),
+		topics.CarroRequestCancel("+"),
 	}
-	// subscribe to all topics
+
+	for _, topic := range topicsToSubscribe{
+		s.Client.Subscribe(topic)
+	}
 }
 
-func (s *Servidor) ObterIdDosCarros () {
-	topic := topics.CarroConnect()
 
-} */
 
 func main() {
-	// VOU CHAVEAR O JSON COM O ENDEREÇO DE IP QUE FOI PRÉ-DEFINIDO
-	log.Println("Funcionando.")
+	log.Println("[SERVIDOR] Inicializando...")
 
-	// Aqui eu implemento um roteador que cuidará do roteamento de topicos para evitar situações de multiplos IFs ou switch Cases.
 	routerServidor := router.NewRouter()
-
-	// A partir daqui eu vou usar esse router para registrar os topicos e os usar como se listeners (o correto é chamar de callbacks mas fica mais fácil de entender como listener)
 	mqttClient := *clientemqtt.NewClient(string(consts.Broker), routerServidor)
+
+	// Conectar ao broker com verificação
+	conn := mqttClient.Connect()
+	if conn.Wait() && conn.Error() != nil {
+		log.Fatalf("[SERVIDOR] Erro ao conectar ao broker: %v", conn.Error())
+	}
+
 	server := Servidor{IP: "A", ID: "B", Regiao: "C", Client: mqttClient}
+
+	// Registrar handler com suporte a '+'
+	mqttClient.Subscribe("car/+/request/reservation")
 	routerServidor.Register("car/+/request/reservation", func(payload []byte) {
+		log.Println("[SERVIDOR] Mensagem recebida em car/+/request/reservation")
 		var msg consts.Mensagem
-		err := json.Unmarshal(payload, &msg)
-		if err != nil {
-			fmt.Println("Erro ao decodificar mensagem:", err)
+		if err := json.Unmarshal(payload, &msg); err != nil {
+			fmt.Println("Erro ao decodificar:", err)
 			return
 		}
 		server.ResponderCarro(msg.CarroMQTT.ID, "Reservado!")
 	})
 
+
+	select {} // Mantém o servidor em execução
 }

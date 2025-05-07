@@ -8,6 +8,12 @@ import (
 
 type Posto struct{
 	Id string
+	Nome string
+	Regiao string
+	X float64
+	Y float64
+	custoKW float64
+	Fila []Carro
 }
 
 

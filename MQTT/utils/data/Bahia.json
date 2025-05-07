@@ -1,0 +1,47 @@
+[
+    {
+        "id": "BA01",
+        "name": "Posto 1 - Bahia",
+        "region": "Bahia",
+        "x": 376.46,
+        "y": 135.55,
+        "capacidade": 10,
+        "custoKW": 0.91
+    },
+    {
+        "id": "BA02",
+        "name": "Posto 2 - Bahia",
+        "region": "Bahia",
+        "x": 437.8,
+        "y": 16.27,
+        "capacidade": 15,
+        "custoKW": 0.95
+    },
+    {
+        "id": "BA03",
+        "name": "Posto 3 - Bahia",
+        "region": "Bahia",
+        "x": -225.01,
+        "y": 271.07,
+        "capacidade": 20,
+        "custoKW": 0.96
+    },
+    {
+        "id": "BA04",
+        "name": "Posto 4 - Bahia",
+        "region": "Bahia",
+        "x": 186.87,
+        "y": -372.98,
+        "capacidade": 18,
+        "custoKW": 1.38
+    },
+    {
+        "id": "BA05",
+        "name": "Posto 5 - Bahia",
+        "region": "Bahia",
+        "x": 323.46,
+        "y": -446.63,
+        "capacidade": 11,
+        "custoKW": 0.85
+    }
+]

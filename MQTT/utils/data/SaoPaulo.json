@@ -1,0 +1,47 @@
+[
+    {
+        "id": "SP01",
+        "name": "Posto 1 - São Paulo",
+        "region": "São Paulo",
+        "x": -490.81,
+        "y": 378.08,
+        "capacidade": 5,
+        "custoKW": 0.94
+    },
+    {
+        "id": "SP02",
+        "name": "Posto 2 - São Paulo",
+        "region": "São Paulo",
+        "x": 83.9,
+        "y": 127.75,
+        "capacidade": 10,
+        "custoKW": 0.94
+    },
+    {
+        "id": "SP03",
+        "name": "Posto 3 - São Paulo",
+        "region": "São Paulo",
+        "x": -399.74,
+        "y": 499.26,
+        "capacidade": 16,
+        "custoKW": 0.92
+    },
+    {
+        "id": "SP04",
+        "name": "Posto 4 - São Paulo",
+        "region": "São Paulo",
+        "x": -140.37,
+        "y": 254.37,
+        "capacidade": 7,
+        "custoKW": 1.27
+    },
+    {
+        "id": "SP05",
+        "name": "Posto 5 - São Paulo",
+        "region": "São Paulo",
+        "x": 63.98,
+        "y": 392.67,
+        "capacidade": 17,
+        "custoKW": 1.41
+    }
+]
