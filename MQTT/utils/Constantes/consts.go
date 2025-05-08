@@ -35,3 +35,5 @@ type Mensagem struct {
 
 const Broker = "tcp://mosquitto:1883"
 
+
+

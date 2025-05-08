@@ -1,50 +1,45 @@
-[
-    [
-        {
-          "id": "GO01",
-          "name": "Posto 1 - Goiás",
-          "region": "Goiás",
-          "x": -60.0,
-          "y": 80.0,
-          "capacidade": 11,
-          "custoKW": 1.22
-        },
-        {
-          "id": "GO02",
-          "name": "Posto 2 - Goiás",
-          "region": "Goiás",
-          "x": -100.0,
-          "y": 130.0,
-          "capacidade": 9,
-          "custoKW": 1.10
-        },
-        {
-          "id": "GO03",
-          "name": "Posto 3 - Goiás",
-          "region": "Goiás",
-          "x": -20.0,
-          "y": 140.0,
-          "capacidade": 14,
-          "custoKW": 1.25
-        },
-        {
-          "id": "GO04",
-          "name": "Posto 4 - Goiás",
-          "region": "Goiás",
-          "x": 30.0,
-          "y": 100.0,
-          "capacidade": 10,
-          "custoKW": 0.97
-        },
-        {
-          "id": "GO05",
-          "name": "Posto 5 - Goiás",
-          "region": "Goiás",
-          "x": -80.0,
-          "y": 60.0,
-          "capacidade": 13,
-          "custoKW": 1.05
-        }
-      ]
-      
-]
+{
+  "Goias":[
+      {
+        "id": "GO01",
+        "name": "Posto 1 - Goiás",
+        "x": -60.0,
+        "y": 80.0,
+        "capacidade": 11,
+        "custoKW": 1.22
+      },
+      {
+        "id": "GO02",
+        "name": "Posto 2 - Goiás",
+        "x": -100.0,
+        "y": 130.0,
+        "capacidade": 9,
+        "custoKW": 1.10
+      },
+      {
+        "id": "GO03",
+        "name": "Posto 3 - Goiás",
+        "x": -20.0,
+        "y": 140.0,
+        "capacidade": 14,
+        "custoKW": 1.25
+      },
+      {
+        "id": "GO04",
+        "name": "Posto 4 - Goiás",
+        "x": 30.0,
+        "y": 100.0,
+        "capacidade": 10,
+        "custoKW": 0.97
+      },
+      {
+        "id": "GO05",
+        "name": "Posto 5 - Goiás",
+        "x": -80.0,
+        "y": 60.0,
+        "capacidade": 13,
+        "custoKW": 1.05
+      }
+    ]
+    
+}
