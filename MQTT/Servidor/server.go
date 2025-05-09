@@ -9,7 +9,10 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Servidor struct {
@@ -19,6 +22,10 @@ type Servidor struct {
 	Client clientemqtt.MQTTClient
 	Pontos []*consts.Posto
 }
+
+var (
+	arquivoPontos = os.Getenv("ARQUIVO_JSON")
+)
 
 func (s *Servidor) ResponderCarro(carID string, msg string) {
 	topic := topics.ServerResponseToCar(carID)
@@ -47,7 +54,7 @@ func getLocalIP() (string, error) {
 	return localAddr.IP.String(), nil
 }
 
-func(s *Servidor) carregarPontos() []*consts.Posto {
+func (s *Servidor) carregarPontos() []*consts.Posto {
 	filePath := os.Getenv("ARQUIVO_JSON")
 	if filePath == "" {
 		panic("ARQUIVO_JSON não definido")
@@ -100,33 +107,86 @@ func inicializarServidor() Servidor {
 	}
 }
 
-func main() {
-	log.Println("[SERVIDOR] Inicializando...")
-
+func serverCarConnection() {
 	server := inicializarServidor()
 	server.Pontos = server.carregarPontos()
 	server.AssinarEventosDoCarro()
+}
 
-	//routerServidor := server.Client.Router
+func (s *Servidor) getPostosFromJSON() ([]*consts.Posto, error) {
+	filePath := arquivoPontos
+	if filePath == "" {
+		return nil, fmt.Errorf("ARQUIVO_JSON não definido")
+	}
 
-	/* routerServidor.Register("car/+/request/reservation", func(payload []byte) {
-		var msg consts.Mensagem
-		if err := json.Unmarshal(payload, &msg); err != nil {
-			log.Println("Erro ao decodificar mensagem:", err)
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao ler o arquivo JSON: %v", err)
+	}
+
+	var mapa map[string][]consts.Posto
+	if err := json.Unmarshal(data, &mapa); err != nil {
+		return nil, fmt.Errorf("erro ao desserializar o JSON: %v", err)
+	}
+
+	estado := os.Getenv("ESTADO")
+	postos, ok := mapa[estado]
+	if !ok {
+		return nil, fmt.Errorf("nenhum dado encontrado para o estado: %s", estado)
+	}
+
+	// Converte para []*consts.Posto
+	var resultado []*consts.Posto
+	for i := range postos {
+		resultado = append(resultado, &postos[i])
+	}
+
+	return resultado, nil
+}
+
+func serverAPICommunication(server *Servidor) {
+	log.Println("[SERVIDOR] Iniciando comunicação API REST entre servidores com Gin...")
+
+	r := gin.Default()
+
+	r.GET("/postos", func(c *gin.Context) {
+		postos, err := server.getPostosFromJSON()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		log.Printf("[SERVIDOR] Solicitação de reserva recebida de car/%s", msg.CarroMQTT.ID)
-		server.ResponderCarro(msg.CarroMQTT.ID, "Reservado!")
+
+		if len(postos) == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Nenhum posto encontrado"})
+			return
+		}
+
+		// Retorna os postos como JSON
+		c.JSON(http.StatusOK, postos)
 	})
 
-	routerServidor.Register(topics.CarroRequestCancel("+"), func(payload []byte) {
-		var msg consts.Mensagem
-		if err := json.Unmarshal(payload, &msg); err != nil {
-			log.Println("Erro ao decodificar mensagem:", err)
-			return
-		}
-		log.Printf("[SERVIDOR] Solicitação de cancelamento recebida de car/%s", msg.CarroMQTT.ID)
-	}) */
+	// Inicia o servidor HTTP na porta 8080
+	if err := r.Run(":8080"); err != nil {
+		log.Fatalf("[SERVIDOR] Erro ao iniciar servidor HTTP com Gin: %v", err)
+	}
+}
+
+func main() {
+	log.Println("[SERVIDOR] Inicializando...")
+
+	go serverCarConnection()
+	go serverAPICommunication(&Servidor{})
+
+	// routerServidor := server.Client.Router
+	// routerServidor.Register("car/+/request/reservation", func(payload []byte) {
+	// 	var msg consts.Mensagem
+	// 	if err := json.Unmarshal(payload, &msg); err != nil {
+	// 		log.Println("Erro ao decodificar mensagem:", err)
+	// 		return
+	// 	}
+	// 	log.Printf("[SERVIDOR] Solicitação de reserva recebida de car/%s", msg.CarroMQTT.ID)
+	// 	server.ResponderCarro(msg.CarroMQTT.ID, "Reservado!")
+	// })
 
 	select {} // mantém o servidor ativo
 }
