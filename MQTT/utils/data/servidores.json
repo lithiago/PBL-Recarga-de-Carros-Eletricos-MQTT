@@ -1,0 +1,65 @@
+[
+    {
+        "id": "Bahia",
+        "min_x": 376.46,
+        "max_x": 437.8,
+        "min_y": -446.63,
+        "max_y": 271.07
+    },
+    {
+        "id": "EspiritoSanto",
+        "min_x": -447.14,
+        "max_x": 243.25,
+        "min_y": -308.34,
+        "max_y": 480.41
+    },
+    {
+        "id": "Goias",
+        "min_x": -100.0,
+        "max_x": -20.0,
+        "min_y": 60.0,
+        "max_y": 140.0
+    },
+    {
+        "id": "MinasGerais",
+        "min_x": 70.0,
+        "max_x": 150.0,
+        "min_y": 180.0,
+        "max_y": 300.1
+    },
+    {
+        "id": "Pernambuco",
+        "min_x": 500.0,
+        "max_x": 570.0,
+        "min_y": 20.0,
+        "max_y": 140.0
+    },
+    {
+        "id": "Piaui",
+        "min_x": 460.0,
+        "max_x": 520.0,
+        "min_y": 190.0,
+        "max_y": 250.0
+    },
+    {
+        "id": "RioDeJaneiro",
+        "min_x": -496.64,
+        "max_x": 458.53,
+        "min_y": -484.52,
+        "max_y": 339.94
+    },
+    {
+        "id": "SaoPaulo",
+        "min_x": -490.81,
+        "max_x": 83.9,
+        "min_y": 127.75,
+        "max_y": 499.26
+    },
+    {
+        "id": "Tocantis",
+        "min_x": -30.0,
+        "max_x": 60.0,
+        "min_y": 320.0,
+        "max_y": 410.0
+    }
+]

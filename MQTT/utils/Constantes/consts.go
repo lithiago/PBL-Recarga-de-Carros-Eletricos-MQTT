@@ -26,6 +26,8 @@ type Carro struct {
 	ID        string                     `json:"id"`
 	Bateria   int                        `json:"bateria"`
 	Clientemqtt clientemqtt.MQTTClient `json:"-"`
+	PosX	float64						`json:"Posx"`
+	PosY	float64						`json:"PosY"`
 }
 
 type Mensagem struct {

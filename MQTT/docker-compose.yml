@@ -1,3 +1,4 @@
+version: '3.8'
 services:
   mosquitto:
     image: eclipse-mosquitto
@@ -10,6 +11,8 @@ services:
     build:
       context: .
       dockerfile: ./Carro/Dockerfile
+    volumes:
+      - ./utils/data:/data  # Monta o diretório que contém servidores.json
     depends_on:
       - mosquitto
 
@@ -20,7 +23,7 @@ services:
     volumes:
       - ./utils/data:/data
     ports:
-      - "8080:8080"  # Mapeia a porta 8080 do container para a 8080 do host
+      - "8080:8080"
     environment:
       - ESTADO=Bahia
       - ARQUIVO_JSON=/data/Bahia.json
@@ -34,7 +37,7 @@ services:
     volumes:
       - ./utils/data:/data
     ports:
-      - "8081:8080"  # Mapeia a porta 8080 do container para a 8080 do host
+      - "8081:8080"
     environment:
       - ESTADO=MinasGerais
       - ARQUIVO_JSON=/data/MinasGerais.json
@@ -48,10 +51,9 @@ services:
     volumes:
       - ./utils/data:/data
     ports:
-      - "8082:8080"  # Mapeia a porta 8080 do container para a 8080 do host
+      - "8082:8080"
     environment:
       - ESTADO=EspiritoSanto
       - ARQUIVO_JSON=/data/EspiritoSanto.json
     depends_on:
       - mosquitto
-  
