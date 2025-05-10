@@ -6,16 +6,16 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-type Posto struct{
-	Id string
-	Nome string
-	Regiao string
-	X float64
-	Y float64
-	custoKW float64
-	Fila []Carro
+type Posto struct {
+	Id       string
+	Nome     string
+	Regiao   string
+	X        float64
+	Y        float64
+	Capacidade float64 // Adicionado
+	CustoKW  float64   // Adicionado
+	Fila     []Carro
 }
-
 
 type MQTTClient struct {
 	client mqtt.Client
@@ -23,8 +23,8 @@ type MQTTClient struct {
 }
 
 type Carro struct {
-	ID       string                     `json:"id"`
-	Bateria  int                        `json:"bateria"`
+	ID        string                     `json:"id"`
+	Bateria   int                        `json:"bateria"`
 	Clientemqtt clientemqtt.MQTTClient `json:"-"`
 }
 
@@ -34,6 +34,3 @@ type Mensagem struct {
 }
 
 const Broker = "tcp://mosquitto:1883"
-
-
-
