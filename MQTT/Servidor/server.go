@@ -265,25 +265,6 @@ func main() {
 
 	// teste de conexção mqtt
 	/*
-
-				routerServidor.Register("car/+/request/reservation", func(payload []byte) {
-					var msg consts.Mensagem
-					if err := json.Unmarshal(payload, &msg); err != nil {
-						log.Println("Erro ao decodificar mensagem:", err)
-						return
-					}
-					log.Printf("[SERVIDOR] Solicitação de reserva recebida de car/%s", msg.CarroMQTT.ID)
-					server.ResponderCarro(msg.CarroMQTT.ID, "Reservado!")
-				})
-
-				routerServidor.Register(topics.CarroRequestCancel("+"), func(payload []byte) {
-					var msg consts.Mensagem
-					if err := json.Unmarshal(payload, &msg); err != nil {
-						log.Println("Erro ao decodificar mensagem:", err)
-						return
-					}
-					log.Printf("[SERVIDOR] Solicitação de cancelamento recebida de car/%s", msg.CarroMQTT.ID)
-				})
 				}
 		// teste para atualizar o json
 			novoPosto := map[string]interface{}{

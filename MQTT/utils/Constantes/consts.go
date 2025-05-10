@@ -3,18 +3,18 @@ package Constantes
 import (
 	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
 	mqttlib "MQTT/utils/mqttLib/Router"
-
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 type Posto struct {
-	Id         string
-	Nome       string
-	Regiao     string
-	X          float64
-	Y          float64
-	Capacidade float64
-	CustoKW    float64
+	Id       string
+	Nome     string
+	Regiao   string
+	X        float64
+	Y        float64
+	Capacidade float64 // Adicionado
+	CustoKW  float64   // Adicionado
+	Fila     []Carro
 }
 
 type MQTTClient struct {
@@ -23,8 +23,8 @@ type MQTTClient struct {
 }
 
 type Carro struct {
-	ID          string                 `json:"id"`
-	Bateria     float64                    `json:"bateria"`
+	ID        string                     `json:"id"`
+	Bateria   float64                        `json:"bateria"`
 	Clientemqtt clientemqtt.MQTTClient `json:"-"`
 	X float64 `json:"x"`
 	Y float64 `json:"y"`

@@ -12,11 +12,13 @@ import (
 
 type Carro struct {
 	ID       string                     `json:"id"`
-	Bateria  int                        `json:"bateria"`
+	Bateria  float64                        `json:"bateria"`
 	Clientemqtt clientemqtt.MQTTClient `json:"-"`
 }
 
-func (c *Carro) SolicitarReserva() {
+// tem que ajsutar essa função
+
+/* func (c *Carro) SolicitarReserva() {
 	topic := topics.CarroRequestReserva(c.ID)
 
 	msg := consts.Mensagem{
@@ -28,7 +30,7 @@ func (c *Carro) SolicitarReserva() {
 	}
 	log.Printf("[CARRO] Publicando no tópico: %s", topic)
 	c.Clientemqtt.Publish(topic, serializarMensagem(msg))
-}
+} */
 
 
 /* func (c *Carro) CancelarReserva() {
@@ -73,7 +75,7 @@ func main(){
 
 	carro := Carro{ID: "001", Bateria: 100, Clientemqtt: mqttClient}
 	carro.AssinarRespostaServidor()
-	carro.SolicitarReserva()
+	//carro.SolicitarReserva()
 
 	routerCarro.Register(topics.ServerResponseToCar(carro.ID), func(payload []byte) {
 		log.Println("[CARRO] Recebida resposta do servidor")
