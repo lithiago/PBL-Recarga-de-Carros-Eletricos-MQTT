@@ -185,19 +185,19 @@
   },
   "active": "436f716e8cc35881",
   "lastOpenFiles": [
+    "MQTT/go.sum",
+    "MQTT/go.mod",
+    "MQTT/utils/data/Bahia.json",
     "MQTT/utils/Rotas/Routes/rotas.go",
     "MQTT/utils/Rotas/Routes",
     "Topicos MQTT.md",
     "REST API.md",
     "MQTT/mosquitto.conf",
-    "MQTT/go.sum",
     "MQTT/Servidor/Dockerfile",
     "MQTT/Carro/Dockerfile",
     "MQTT/docker-compose.yml",
     "MQTT/mqttLib/Router/router.go",
     "MQTT/mqttLib/Router",
-    "MQTT/mqttLib/ClienteMQTT/ClienteMQTT.go",
-    "MQTT/mqttLib/ClienteMQTT",
     "Fluxo de Funcionamento para o MQTT (Recarga de Carros Elétricos).md"
   ]
 }

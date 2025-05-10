@@ -201,11 +201,12 @@ func desserializarMensagem(payload []byte) consts.Mensagem{
 	return msg
 }
 
-func calcularRotas(rotasPossiveis map[string][]string, trajeto consts.Trajeto) []string {
+func calcularRotas(rotasPossiveis map[string][]string, trajeto consts.Trajeto) map[int][]string {
 	inicio := trajeto.Inicio
 	destino := trajeto.Destino
-	var rotasValidas []string
+	rotasValidas := make(map[int][]string)
 
+	contador := 0
 	for _, rota := range rotasPossiveis {
 		indiceInicio := -1
 		indiceDestino := -1
@@ -220,13 +221,15 @@ func calcularRotas(rotasPossiveis map[string][]string, trajeto consts.Trajeto) [
 		}
 
 		if indiceInicio != -1 && indiceDestino != -1 && indiceInicio < indiceDestino {
-			// Adiciona apenas o trecho útil da rota
-			rotasValidas = append(rotasValidas, rota[indiceInicio:indiceDestino+1]...)
+			subRota := rota[indiceInicio : indiceDestino+1]
+			rotasValidas[contador] = subRota
+			contador++
 		}
 	}
 
 	return rotasValidas
 }
+
 
 func main() {
 	log.Println("[SERVIDOR] Inicializando...")
@@ -243,10 +246,10 @@ func main() {
 		}		
 		dadosRotas := lerRotas()
 		rotasValidas := calcularRotas(dadosRotas.Rotas, conteudoMsg)
-		//coordenadasDestino := dadosRotas.Cidades[conteudoMsg.Destino]
 		mapa := server.carregarPontos()
 		for i, rota := range rotasValidas {
 			log.Printf("Calculando rota %d: %v\n", i+1, rota)
+		
 			paradas := rotaslib.gerarRotas(
 				conteudoMsg.CarroMQTT,
 				rota,
