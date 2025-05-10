@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Topicos MQTT.md",
+                "file": "REST API.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Topicos MQTT"
+              "title": "REST API"
             }
           }
         ],
@@ -185,6 +185,10 @@
   },
   "active": "436f716e8cc35881",
   "lastOpenFiles": [
+    "MQTT/utils/Rotas/Routes/rotas.go",
+    "MQTT/utils/Rotas/Routes",
+    "Topicos MQTT.md",
+    "REST API.md",
     "MQTT/mosquitto.conf",
     "MQTT/go.sum",
     "MQTT/Servidor/Dockerfile",
@@ -194,9 +198,6 @@
     "MQTT/mqttLib/Router",
     "MQTT/mqttLib/ClienteMQTT/ClienteMQTT.go",
     "MQTT/mqttLib/ClienteMQTT",
-    "MQTT/mqttLib/ClienteMQTT.go",
-    "MQTT/mqttLib/mqttDefault.go",
-    "Fluxo de Funcionamento para o MQTT (Recarga de Carros Elétricos).md",
-    "Topicos MQTT.md"
+    "Fluxo de Funcionamento para o MQTT (Recarga de Carros Elétricos).md"
   ]
 }

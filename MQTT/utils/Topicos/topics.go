@@ -5,6 +5,7 @@ import "fmt"
 // Carro → Servidor
 func CarroConnect() string      { return "car/+/request/connect" }
 func CarroRequestReserva(carID string) string     { return fmt.Sprintf("car/%s/request/reservation", carID) }
+func CarroRequestRotas(carID string) string     { return fmt.Sprintf("car/%s/request/routes", carID) }
 func CarroRequestStatus(carID string) string      { return fmt.Sprintf("car/%s/request/status", carID) }
 func CarroRequestCancel(carID string) string      { return fmt.Sprintf("car/%s/request/cancel", carID) }
 

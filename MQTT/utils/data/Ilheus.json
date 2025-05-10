@@ -1,0 +1,31 @@
+{
+  "Ilheus":[
+    {
+      "id": "RJ01",
+      "name": "Posto 1 - Ilheus",
+      "cidade": "Ilheus",
+      "x": 299,
+      "y": 105,
+      "Fila": [],
+      "custoKW": 0.75
+    },
+    {
+      "id": "RJ02",
+      "name": "Posto 2 - Ilheus",
+      "cidade": "Ilheus",
+      "x": 300,
+      "y": 95,
+      "Fila": [],
+      "custoKW": 1.23
+    },
+    {
+      "id": "RJ03",
+      "name": "Posto 3 - Ilheus",
+      "cidade": "Ilheus",
+      "x": 303,
+      "y": 103,
+      "Fila": [],
+      "custoKW": 0.53
+    }
+  ]
+}

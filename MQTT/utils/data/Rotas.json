@@ -1,0 +1,15 @@
+{
+  "Cidades": {
+    "Feira de Santana": { "x": 97.67, "y": 200.0 },
+    "Salvador": { "x": 152.0, "y": 249.0 },
+    "Ilheus": { "x": 300.67, "y": 101.0 }
+  },
+  "Rotas": {
+    "Rota1": ["Feira de Santana", "Salvador", "Ilheus"],
+    "Rota2": ["Feira de Santana", "Ilheus", "Salvador"],
+    "Rota3": ["Salvador", "Feira de Santana", "Ilheus"],
+    "Rota4": ["Salvador", "Ilheus", "Feira de Santana"],
+    "Rota5": ["Ilheus", "Feira de Santana", "Salvador"],
+    "Rota6": ["Ilheus", "Salvador", "Feira de Santana"]
+  }
+}

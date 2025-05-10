@@ -13,105 +13,39 @@ services:
     depends_on:
       - mosquitto
 
-  servidor-bahia:
+  servidor-feiradesantana:
     build:
       context: .
       dockerfile: ./Servidor/Dockerfile
     volumes:
       - ./utils/data:/data
     environment:
-      - ESTADO=Bahia
-      - ARQUIVO_JSON=/data/Bahia.json
+      - CIDADE=FeiraDeSantana
+      - ARQUIVO_JSON=/data/FeiraDeSantana.json
     depends_on:
       - mosquitto
 
-  servidor-minas:
+  servidor-salvador:
     build:
       context: .
       dockerfile: ./Servidor/Dockerfile
     volumes:
       - ./utils/data:/data
     environment:
-      - ESTADO=MinasGerais
-      - ARQUIVO_JSON=/data/MinasGerais.json
+      - CIDADE=Salvador
+      - ARQUIVO_JSON=/data/Salvador.json
     depends_on:
       - mosquitto
 
-  servidor-goias:
+  servidor-ilheus:
     build:
       context: .
       dockerfile: ./Servidor/Dockerfile
     volumes:
       - ./utils/data:/data
     environment:
-      - ESTADO=Goias
-      - ARQUIVO_JSON=/data/Goias.json
+      - CIDADE=Ilheus
+      - ARQUIVO_JSON=/data/Ilheus.json
     depends_on:
       - mosquitto
 
-  servidor-saopaulo:
-    build:
-      context: .
-      dockerfile: ./Servidor/Dockerfile
-    volumes:
-      - ./utils/data:/data
-    environment:
-      - ESTADO=SaoPaulo
-      - ARQUIVO_JSON=/data/SaoPaulo.json
-    depends_on:
-      - mosquitto
-  servidor-piaui:
-    build:
-      context: .
-      dockerfile: ./Servidor/Dockerfile
-    volumes:
-      - ./utils/data:/data
-    environment:
-      - ESTADO=Piaui
-      - ARQUIVO_JSON=/data/Piaui.json
-    depends_on:
-      - mosquitto
-  servidor-riodejaneiro:
-    build:
-      context: .
-      dockerfile: ./Servidor/Dockerfile
-    volumes:
-      - ./utils/data:/data
-    environment:
-      - ESTADO=RioDeJaneiro
-      - ARQUIVO_JSON=/data/RioDeJaneiro.json
-    depends_on:
-      - mosquitto
-  servidor-tocantis:
-    build:
-      context: .
-      dockerfile: ./Servidor/Dockerfile
-    volumes:
-      - ./utils/data:/data
-    environment:
-      - ESTADO=Tocantis
-      - ARQUIVO_JSON=/data/Tocantis.json
-    depends_on:
-      - mosquitto
-  servidor-espiritosanto:
-    build:
-      context: .
-      dockerfile: ./Servidor/Dockerfile
-    volumes:
-      - ./utils/data:/data
-    environment:
-      - ESTADO=EspiritoSanto
-      - ARQUIVO_JSON=/data/EspiritoSanto.json
-    depends_on:
-      - mosquitto
-  servidor-pernambuco:
-    build:
-      context: .
-      dockerfile: ./Servidor/Dockerfile
-    volumes:
-      - ./utils/data:/data
-    environment:
-      - ESTADO=Pernambuco
-      - ARQUIVO_JSON=/data/Pernambuco.json
-    depends_on:
-      - mosquitto

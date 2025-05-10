@@ -4,6 +4,7 @@ import (
 	consts "MQTT/utils/Constantes"
 	topics "MQTT/utils/Topicos"
 	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
+	rotaslib "MQTT/utils/Rotas/Routes"
 	router "MQTT/utils/mqttLib/Router"
 	"encoding/json"
 	"fmt"
@@ -51,7 +52,7 @@ func getLocalIP() (string, error) {
 	return localAddr.IP.String(), nil
 }
 
-func (s *Servidor) carregarPontos() []*consts.Posto {
+func (s *Servidor) carregarPontos() map[string][]*consts.Posto {
 	filePath := os.Getenv("ARQUIVO_JSON")
 	if filePath == "" {
 		panic("ARQUIVO_JSON não definido")
@@ -62,26 +63,24 @@ func (s *Servidor) carregarPontos() []*consts.Posto {
 		panic(err)
 	}
 
-	var mapa map[string][]consts.Posto
+	var mapa map[string][]*consts.Posto
 	if err := json.Unmarshal(data, &mapa); err != nil {
 		panic(err)
 	}
 
-	estado := os.Getenv("ESTADO")
-	postos, ok := mapa[estado]
+	cidade := os.Getenv("CIDADE")
+	postos, ok := mapa[cidade]
 	if !ok {
-		panic(fmt.Sprintf("Nenhum dado encontrado para estado: %s", estado))
+		panic(fmt.Sprintf("Nenhum dado encontrado para estado: %s", cidade))
 	}
-	s.Regiao = estado
+	s.Regiao = cidade
 
 	// Converte para []*consts.Posto
-	var resultado []*consts.Posto
-	for i := range postos {
-		resultado = append(resultado, &postos[i])
+	for i, posto:= range postos {
+		log.Printf("Posto %d da cidade de %s: [ %s ]\n",i, cidade, posto)
 	}
 
-	log.Printf("Servidor carregado com %d postos de %s\n", len(resultado), estado)
-	return resultado
+	return mapa
 }
 
 func (s *Servidor) adicionarAoArquivo(path string, novoDado interface{}) error {
@@ -174,53 +173,137 @@ func inicializarServidor() Servidor {
 	}
 }
 
+
+func lerRotas() consts.DadosRotas {
+	filePath := os.Getenv("ARQUIVO_JSON_ROTAS")
+	if filePath == "" {
+		panic("ARQUIVO_JSON não definido")
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		panic(err)
+	}
+
+	var dados consts.DadosRotas
+	if err := json.Unmarshal(data, &dados); err != nil {
+		panic(err)
+	}
+	return dados
+}
+
+func desserializarMensagem(payload []byte) consts.Mensagem{
+	var msg consts.Mensagem
+	if err := json.Unmarshal(payload, &msg); err != nil {
+		log.Println("Erro ao decodificar mensagem:", err)
+		return msg
+	}
+	return msg
+}
+
+func calcularRotas(rotasPossiveis map[string][]string, trajeto consts.Trajeto) []string {
+	inicio := trajeto.Inicio
+	destino := trajeto.Destino
+	var rotasValidas []string
+
+	for _, rota := range rotasPossiveis {
+		indiceInicio := -1
+		indiceDestino := -1
+
+		for i, cidade := range rota {
+			if cidade == inicio && indiceInicio == -1 {
+				indiceInicio = i
+			}
+			if cidade == destino {
+				indiceDestino = i
+			}
+		}
+
+		if indiceInicio != -1 && indiceDestino != -1 && indiceInicio < indiceDestino {
+			// Adiciona apenas o trecho útil da rota
+			rotasValidas = append(rotasValidas, rota[indiceInicio:indiceDestino+1]...)
+		}
+	}
+
+	return rotasValidas
+}
+
 func main() {
 	log.Println("[SERVIDOR] Inicializando...")
 
 	server := inicializarServidor()
-	server.Pontos = server.carregarPontos()
 	server.AssinarEventosDoCarro()
-	// teste de conexção mqtt
-	/*	routerServidor := server.Client.Router
 
-			routerServidor.Register("car/+/request/reservation", func(payload []byte) {
-				var msg consts.Mensagem
-				if err := json.Unmarshal(payload, &msg); err != nil {
-					log.Println("Erro ao decodificar mensagem:", err)
-					return
+	routerServidor := server.Client.Router
+	routerServidor.Register(topics.CarroRequestRotas("+"), func(payload []byte) {
+		var conteudoMsg consts.Trajeto
+		msg := desserializarMensagem(payload)
+		if err := json.Unmarshal(msg.ConteudoJSON, &conteudoMsg); err != nil {
+			log.Println("Erro ao decodificar mensagem:", err)
+		}		
+		dadosRotas := lerRotas()
+		rotasValidas := calcularRotas(dadosRotas.Rotas, conteudoMsg)
+		//coordenadasDestino := dadosRotas.Cidades[conteudoMsg.Destino]
+		mapa := server.carregarPontos()
+		for i, rota := range rotasValidas {
+			log.Printf("Calculando rota %d: %v\n", i+1, rota)
+			paradas := rotaslib.gerarRotas(
+				conteudoMsg.CarroMQTT,
+				rota,
+				dadosRotas.Cidades,
+				mapa,
+			)
+		
+			for cidade, lista := range paradas {
+				log.Printf("  Paradas em %s:", cidade)
+				for _, p := range lista {
+					log.Printf("    - %s (%0.f, %0.f)", p.PostoRecarga.Name, p.PostoRecarga.X, p.PostoRecarga.Y)
 				}
-				log.Printf("[SERVIDOR] Solicitação de reserva recebida de car/%s", msg.CarroMQTT.ID)
-				server.ResponderCarro(msg.CarroMQTT.ID, "Reservado!")
-			})
-
-			routerServidor.Register(topics.CarroRequestCancel("+"), func(payload []byte) {
-				var msg consts.Mensagem
-				if err := json.Unmarshal(payload, &msg); err != nil {
-					log.Println("Erro ao decodificar mensagem:", err)
-					return
-				}
-				log.Printf("[SERVIDOR] Solicitação de cancelamento recebida de car/%s", msg.CarroMQTT.ID)
-			})
 			}
-	// teste para atualizar o json
-		novoPosto := map[string]interface{}{
-			"id":         "BA04",            // ID do posto a ser atualizado
-			"name":       "Posto 7 - Bahia", // Novo nome do posto
-			"x":          777.87,            // Novo valor de X
-			"y":          -777.98,           // Novo valor de Y
-			"capacidade": 777.0,             // Nova capacidade
-			"custoKW":    2.18,              // Novo custo por kWh
 		}
+	})
 
-		// Chamar a função para atualizar ou adicionar o posto
-		err := server.adicionarAoArquivo(arquivo, novoPosto)
-		if err != nil {
-			// Se ocorrer algum erro, imprime e encerra
-			fmt.Println("Erro:", err)
-		} else {
-			// Caso contrário, confirma que o posto foi atualizado
-			fmt.Println("Posto com ID 'BA04' atualizado com sucesso!")
-		}
+	// teste de conexção mqtt
+	/*
+
+				routerServidor.Register("car/+/request/reservation", func(payload []byte) {
+					var msg consts.Mensagem
+					if err := json.Unmarshal(payload, &msg); err != nil {
+						log.Println("Erro ao decodificar mensagem:", err)
+						return
+					}
+					log.Printf("[SERVIDOR] Solicitação de reserva recebida de car/%s", msg.CarroMQTT.ID)
+					server.ResponderCarro(msg.CarroMQTT.ID, "Reservado!")
+				})
+
+				routerServidor.Register(topics.CarroRequestCancel("+"), func(payload []byte) {
+					var msg consts.Mensagem
+					if err := json.Unmarshal(payload, &msg); err != nil {
+						log.Println("Erro ao decodificar mensagem:", err)
+						return
+					}
+					log.Printf("[SERVIDOR] Solicitação de cancelamento recebida de car/%s", msg.CarroMQTT.ID)
+				})
+				}
+		// teste para atualizar o json
+			novoPosto := map[string]interface{}{
+				"id":         "BA04",            // ID do posto a ser atualizado
+				"name":       "Posto 7 - Bahia", // Novo nome do posto
+				"x":          777.87,            // Novo valor de X
+				"y":          -777.98,           // Novo valor de Y
+				"capacidade": 777.0,             // Nova capacidade
+				"custoKW":    2.18,              // Novo custo por kWh
+			}
+
+			// Chamar a função para atualizar ou adicionar o posto
+			err := server.adicionarAoArquivo(arquivo, novoPosto)
+			if err != nil {
+				// Se ocorrer algum erro, imprime e encerra
+				fmt.Println("Erro:", err)
+			} else {
+				// Caso contrário, confirma que o posto foi atualizado
+				fmt.Println("Posto com ID 'BA04' atualizado com sucesso!")
+			}
 	*/
 	select {} // mantém o servidor ativo
 }
