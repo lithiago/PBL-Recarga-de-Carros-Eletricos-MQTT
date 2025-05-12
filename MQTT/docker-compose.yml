@@ -13,7 +13,7 @@ services:
     depends_on:
       - mosquitto
 
-  servidor-bahia:
+  servidor-feiradesantana:
     build:
       context: .
       dockerfile: ./Servidor/Dockerfile
@@ -22,12 +22,12 @@ services:
     ports:
       - "8080:8080"  # Mapeia a porta 8080 do container para a 8080 do host
     environment:
-      - ESTADO=Bahia
-      - ARQUIVO_JSON=/data/Bahia.json
+      - CIDADE=FeiraDeSantana
+      - ARQUIVO_JSON=/data/FeiraDeSantana.json
     depends_on:
       - mosquitto
   
-  servidor-minas:
+  servidor-ilheus:
     build:
       context: .
       dockerfile: ./Servidor/Dockerfile
@@ -36,12 +36,12 @@ services:
     ports:
       - "8081:8080"  # Mapeia a porta 8080 do container para a 8080 do host
     environment:
-      - ESTADO=MinasGerais
-      - ARQUIVO_JSON=/data/MinasGerais.json
+      - CIDADE=Ilheus
+      - ARQUIVO_JSON=/data/Ilheus.json
     depends_on:
       - mosquitto
   
-  servidor-espiritosanto:
+  servidor-salvador:
     build:
       context: .
       dockerfile: ./Servidor/Dockerfile
@@ -50,8 +50,8 @@ services:
     ports:
       - "8082:8080"  # Mapeia a porta 8080 do container para a 8080 do host
     environment:
-      - ESTADO=EspiritoSanto
-      - ARQUIVO_JSON=/data/EspiritoSanto.json
+      - CIDADE=Salvador
+      - ARQUIVO_JSON=/data/Salvador.json
     depends_on:
       - mosquitto
   

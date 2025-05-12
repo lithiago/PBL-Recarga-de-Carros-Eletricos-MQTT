@@ -70,12 +70,12 @@ func (s *Servidor) carregarPontos() []*consts.Posto {
 		panic(err)
 	}
 
-	estado := os.Getenv("ESTADO")
-	postos, ok := mapa[estado]
+	cidade := os.Getenv("CIDADE")
+	postos, ok := mapa[cidade]
 	if !ok {
-		panic(fmt.Sprintf("Nenhum dado encontrado para estado: %s", estado))
+		panic(fmt.Sprintf("Nenhum dado encontrado para cidade: %s", cidade))
 	}
-	s.Regiao = estado
+	s.Regiao = cidade
 
 	// Converte para []*consts.Posto
 	var resultado []*consts.Posto
@@ -83,78 +83,8 @@ func (s *Servidor) carregarPontos() []*consts.Posto {
 		resultado = append(resultado, &postos[i])
 	}
 
-	log.Printf("Servidor carregado com %d postos de %s\n", len(resultado), estado)
+	log.Printf("Servidor carregado com %d postos de %s\n", len(resultado), cidade)
 	return resultado
-}
-
-func (s *Servidor) adicionarAoArquivo(path string, novoDado interface{}) error {
-	// Ler conteúdo atual do JSON
-	conteudo, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	// Decodificar para um mapa com as regiões como chave e os postos como valor
-	var mapa map[string][]consts.Posto
-	if len(conteudo) > 0 {
-		if err := json.Unmarshal(conteudo, &mapa); err != nil {
-			return err
-		}
-	}
-
-	// Recuperar a região (estado) a partir da variável de ambiente
-	estado := os.Getenv("ESTADO")
-	postos, ok := mapa[estado]
-	if !ok {
-		return fmt.Errorf("Nenhum dado encontrado para o estado: %s", estado)
-	}
-
-	// Encontrar o posto correspondente ao ID do novoDado
-	novoPosto := novoDado.(map[string]interface{})
-	idNovoPosto := novoPosto["id"].(string)
-
-	// Atualizar o posto ou adicionar um novo
-	postoAtualizado := false
-	for i, posto := range postos {
-		if posto.Id == idNovoPosto {
-			// Atualizar as informações do posto
-			postos[i].Nome = novoPosto["name"].(string)
-			postos[i].X = novoPosto["x"].(float64)
-			postos[i].Y = novoPosto["y"].(float64)
-			postos[i].Capacidade = novoPosto["capacidade"].(float64)
-			postos[i].CustoKW = novoPosto["custoKW"].(float64)
-			postoAtualizado = true
-			break
-		}
-	}
-
-	// Se o posto não foi encontrado, adiciona um novo
-	if !postoAtualizado {
-		novoPostoStruturado := consts.Posto{
-			Id:         idNovoPosto,
-			Nome:       novoPosto["name"].(string),
-			X:          novoPosto["x"].(float64),
-			Y:          novoPosto["y"].(float64),
-			Capacidade: novoPosto["capacidade"].(float64),
-			CustoKW:    novoPosto["custoKW"].(float64),
-		}
-		postos = append(postos, novoPostoStruturado)
-	}
-
-	// Atualizar o mapa com os dados atualizados
-	mapa[estado] = postos
-
-	// Reescrever o arquivo com os dados atualizados
-	arquivo, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer arquivo.Close()
-
-	// Escrever no arquivo com indentação
-	encoder := json.NewEncoder(arquivo)
-	encoder.SetIndent("", "   ")
-	return encoder.Encode(mapa)
 }
 
 func inicializarServidor() Servidor {
@@ -183,6 +113,35 @@ func serverCarConnection() {
 	server.AssinarEventosDoCarro()
 }
 
+func (s *Servidor) atualizarArquivo(filePath string, postos []*consts.Posto) error {
+	// Converte os postos para o formato de mapa esperado no JSON
+	cidade := os.Getenv("CIDADE")
+	if cidade == "" {
+		return fmt.Errorf("CIDADE não definida")
+	}
+
+	mapa := map[string][]consts.Posto{
+		cidade: make([]consts.Posto, len(postos)),
+	}
+
+	for i, posto := range postos {
+		mapa[cidade][i] = *posto
+	}
+
+	// Serializa o mapa para JSON
+	data, err := json.MarshalIndent(mapa, "", "  ")
+	if err != nil {
+		return fmt.Errorf("erro ao serializar os dados para JSON: %v", err)
+	}
+
+	// Escreve os dados no arquivo
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("erro ao escrever no arquivo JSON: %v", err)
+	}
+
+	return nil
+}
+
 func (s *Servidor) getPostosFromJSON() ([]*consts.Posto, error) {
 	filePath := arquivoPontos
 	if filePath == "" {
@@ -199,10 +158,10 @@ func (s *Servidor) getPostosFromJSON() ([]*consts.Posto, error) {
 		return nil, fmt.Errorf("erro ao desserializar o JSON: %v", err)
 	}
 
-	estado := os.Getenv("ESTADO")
-	postos, ok := mapa[estado]
+	cidade := os.Getenv("CIDADE")
+	postos, ok := mapa[cidade]
 	if !ok {
-		return nil, fmt.Errorf("nenhum dado encontrado para o estado: %s", estado)
+		return nil, fmt.Errorf("nenhum dado encontrado para a cidade: %s", cidade)
 	}
 
 	// Converte para []*consts.Posto
@@ -212,6 +171,27 @@ func (s *Servidor) getPostosFromJSON() ([]*consts.Posto, error) {
 	}
 
 	return resultado, nil
+}
+
+// retorna os postos disponíveis (sem nenhum carro na fila))
+func (s *Servidor) getPostosDisponiveis() ([]*consts.Posto, error) {
+	postos, err := s.getPostosFromJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	var postosDisponiveis []*consts.Posto
+	for _, posto := range postos {
+		if len(posto.Fila) == 0 { // Verifica se a fila está vazia
+			postosDisponiveis = append(postosDisponiveis, posto)
+		}
+	}
+
+	if len(postosDisponiveis) == 0 {
+		return nil, fmt.Errorf("nenhum posto disponível encontrado")
+	}
+
+	return postosDisponiveis, nil
 }
 
 func serverAPICommunication(server *Servidor) {
@@ -230,9 +210,104 @@ func serverAPICommunication(server *Servidor) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Nenhum posto encontrado"})
 			return
 		}
-
 		// Retorna os postos como JSON
 		c.JSON(http.StatusOK, postos)
+	})
+
+	r.GET("/postos/disponiveis", func(c *gin.Context) {
+		postos, err := server.getPostosDisponiveis()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if len(postos) == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "nenhum posto disponível encontrado"})
+			return
+		}
+		c.JSON(http.StatusOK, postos)
+	})
+
+	r.PATCH("/postos/:id/adicionar", func(c *gin.Context) {
+		id := c.Param("id")
+		var carro consts.Carro
+		if err := c.ShouldBindJSON(&carro); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos"})
+			return
+		}
+
+		postos, err := server.getPostosFromJSON()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		var postoAtualizado *consts.Posto
+		for _, p := range postos {
+			if p.Id == id {
+				// Verifica se já existe um carro na fila
+				if len(p.Fila) > 0 {
+					c.JSON(http.StatusConflict, gin.H{"error": "Já existe um carro na fila"})
+					return
+				}
+				// Adiciona o carro à fila
+				p.Fila = append(p.Fila, carro)
+				postoAtualizado = p
+				break
+			}
+		}
+
+		if postoAtualizado == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Posto não encontrado"})
+			return
+		}
+
+		if err := server.atualizarArquivo(arquivoPontos, postos); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar o arquivo JSON"})
+			return
+		}
+
+		c.JSON(http.StatusOK, postoAtualizado)
+	})
+
+	r.PATCH("/postos/:id/remover", func(c *gin.Context) {
+		id := c.Param("id")
+		var carro consts.Carro
+		if err := c.ShouldBindJSON(&carro); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos"})
+			return
+		}
+
+		postos, err := server.getPostosFromJSON()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		var postoAtualizado *consts.Posto
+		for _, p := range postos {
+			if p.Id == id {
+				for i, c := range p.Fila {
+					if c.ID == carro.ID {
+						p.Fila = append(p.Fila[:i], p.Fila[i+1:]...)
+						postoAtualizado = p
+						break
+					}
+				}
+				break
+			}
+		}
+
+		if postoAtualizado == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Posto ou carro não encontrado"})
+			return
+		}
+
+		if err := server.atualizarArquivo(arquivoPontos, postos); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar o arquivo JSON"})
+			return
+		}
+
+		c.JSON(http.StatusOK, postoAtualizado)
 	})
 
 	// Inicia o servidor HTTP na porta 8080
@@ -240,6 +315,8 @@ func serverAPICommunication(server *Servidor) {
 		log.Fatalf("[SERVIDOR] Erro ao iniciar servidor HTTP com Gin: %v", err)
 	}
 }
+
+// TODO : IMPLEMENTAR O 2PC
 
 func main() {
 	log.Println("[SERVIDOR] Inicializando...")

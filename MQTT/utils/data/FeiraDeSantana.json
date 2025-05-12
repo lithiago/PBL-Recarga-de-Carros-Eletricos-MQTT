@@ -1,0 +1,34 @@
+{
+  "FeiraDeSantana": [
+    {
+      "Id": "FSA01",
+      "Nome": "",
+      "Regiao": "",
+      "X": 97,
+      "Y": 204,
+      "Capacidade": 0,
+      "CustoKW": 0.94,
+      "Fila": []
+    },
+    {
+      "Id": "FSA02",
+      "Nome": "",
+      "Regiao": "",
+      "X": 97,
+      "Y": 200,
+      "Capacidade": 0,
+      "CustoKW": 0.94,
+      "Fila": []
+    },
+    {
+      "Id": "FSA03",
+      "Nome": "",
+      "Regiao": "",
+      "X": 99,
+      "Y": 196,
+      "Capacidade": 0,
+      "CustoKW": 0.92,
+      "Fila": []
+    }
+  ]
+}
