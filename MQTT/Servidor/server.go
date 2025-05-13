@@ -2,6 +2,7 @@ package main
 
 import (
 	consts "MQTT/utils/Constantes"
+	rotaslib "MQTT/utils/Rotas"
 	topics "MQTT/utils/Topicos"
 	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
 	router "MQTT/utils/mqttLib/Router"
@@ -11,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,26 +20,38 @@ import (
 type Servidor struct {
 	IP     string
 	ID     string
-	Regiao string
+	Cidade string
 	Client clientemqtt.MQTTClient
-	Pontos []*consts.Posto
+	Pontos map[string][]*consts.Posto
 }
 
 var (
 	arquivoPontos = os.Getenv("ARQUIVO_JSON")
 )
 
-func (s *Servidor) ResponderCarro(carID string, msg string) {
+// Mapa de cidades para containers e portas
+var cidadeConfig = map[string]struct {
+	Container string
+	Porta     string
+}{
+	"feiradesantana": {"feiradesantana", "8080"},
+	"salvador":       {"salvador", "8082"},
+	"ilheus":         {"ilheus", "8081"},
+}
+
+// A variavel solicitação é para concatenar a string ao topico evitando multiplas condições
+func (s *Servidor) ResponderCarro(carID string, conteudoJSON []byte) {
 	topic := topics.ServerResponseToCar(carID)
 	log.Printf("[SERVIDOR] Respondendo para: %s", topic)
-	s.Client.Publish(topic, []byte(msg))
+	s.Client.Publish(topic, conteudoJSON)
 }
 
 func (s *Servidor) AssinarEventosDoCarro() {
 	topicsToSubscribe := []string{
-		topics.CarroRequestReserva("+"),
-		topics.CarroRequestStatus("+"),
-		topics.CarroRequestCancel("+"),
+		topics.CarroRequestReserva("+", s.ID, s.Cidade),
+		topics.CarroRequestStatus("+", s.ID, s.Cidade),
+		topics.CarroRequestCancel("+", s.ID, s.Cidade),
+		topics.CarroRequestRotas("+", s.Cidade),
 	}
 	for _, topic := range topicsToSubscribe {
 		s.Client.Subscribe(topic)
@@ -70,20 +84,18 @@ func (s *Servidor) carregarPontos() []*consts.Posto {
 		panic(err)
 	}
 
-	estado := os.Getenv("ESTADO")
-	postos, ok := mapa[estado]
+	cidade := os.Getenv("CIDADE")
+	postos, ok := mapa[cidade]
 	if !ok {
-		panic(fmt.Sprintf("Nenhum dado encontrado para estado: %s", estado))
+		panic(fmt.Sprintf("Nenhum dado encontrado para cidade: %s", cidade))
 	}
-	s.Regiao = estado
-
 	// Converte para []*consts.Posto
 	var resultado []*consts.Posto
 	for i := range postos {
 		resultado = append(resultado, &postos[i])
 	}
 
-	log.Printf("Servidor carregado com %d postos de %s\n", len(resultado), estado)
+	log.Printf("Servidor carregado com %d postos de %s\n", len(resultado), cidade)
 	return resultado
 }
 
@@ -174,13 +186,72 @@ func inicializarServidor() Servidor {
 	return Servidor{
 		IP:     ip,
 		Client: mqttClient,
+		Cidade: os.Getenv("CIDADE"),
 	}
 }
 
-func serverCarConnection() {
-	server := inicializarServidor()
-	server.Pontos = server.carregarPontos()
-	server.AssinarEventosDoCarro()
+func lerRotas() consts.DadosRotas {
+	filePath := os.Getenv("ARQUIVO_JSON_ROTAS")
+	if filePath == "" {
+		panic("ARQUIVO_JSON_ROTAS não definido")
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		panic(err)
+	}
+
+	var dados consts.DadosRotas
+	if err := json.Unmarshal(data, &dados); err != nil {
+		panic(err)
+	}
+	return dados
+}
+
+func desserializarMensagem(payload []byte) consts.Mensagem {
+	var msg consts.Mensagem
+	if err := json.Unmarshal(payload, &msg); err != nil {
+		log.Println("Erro ao decodificar mensagem:", err)
+		return msg
+	}
+	return msg
+}
+
+func calcularRotas(rotasPossiveis map[string][]string, trajeto consts.Trajeto) map[int][]string {
+	inicio := trajeto.Inicio
+	destino := trajeto.Destino
+	rotasValidas := make(map[int][]string)
+
+	if inicio == "" || destino == "" {
+		log.Println("Erro: Início ou destino inválido.")
+		return rotasValidas
+	}
+
+	log.Printf("Início: %s, Destino: %s", inicio, destino)
+	indiceRotaValida := 0
+
+	for _, rota := range rotasPossiveis {
+		indiceInicio := -1
+		indiceDestino := -1
+
+		for i, cidade := range rota {
+			if cidade == inicio && indiceInicio == -1 {
+				indiceInicio = i
+			}
+			if cidade == destino {
+				indiceDestino = i
+			}
+		}
+
+		// Verifica se a sub-rota é válida
+		if indiceInicio != -1 && indiceDestino != -1 && indiceInicio <= indiceDestino {
+			subRota := rota[indiceInicio : indiceDestino+1]
+			rotasValidas[indiceRotaValida] = subRota
+			indiceRotaValida++
+		}
+	}
+
+	return rotasValidas
 }
 
 func (s *Servidor) getPostosFromJSON() ([]*consts.Posto, error) {
@@ -199,10 +270,10 @@ func (s *Servidor) getPostosFromJSON() ([]*consts.Posto, error) {
 		return nil, fmt.Errorf("erro ao desserializar o JSON: %v", err)
 	}
 
-	estado := os.Getenv("ESTADO")
-	postos, ok := mapa[estado]
+	cidade := os.Getenv("CIDADE")
+	postos, ok := mapa[cidade]
 	if !ok {
-		return nil, fmt.Errorf("nenhum dado encontrado para o estado: %s", estado)
+		return nil, fmt.Errorf("nenhum dado encontrado para a cidade: %s", cidade)
 	}
 
 	// Converte para []*consts.Posto
@@ -212,6 +283,35 @@ func (s *Servidor) getPostosFromJSON() ([]*consts.Posto, error) {
 	}
 
 	return resultado, nil
+}
+
+func (s *Servidor) atualizarArquivo(filePath string, postos []*consts.Posto) error {
+	// Converte os postos para o formato de mapa esperado no JSON
+	cidade := os.Getenv("CIDADE")
+	if cidade == "" {
+		return fmt.Errorf("CIDADE não definida")
+	}
+
+	mapa := map[string][]consts.Posto{
+		cidade: make([]consts.Posto, len(postos)),
+	}
+
+	for i, posto := range postos {
+		mapa[cidade][i] = *posto
+	}
+
+	// Serializa o mapa para JSON
+	data, err := json.MarshalIndent(mapa, "", "  ")
+	if err != nil {
+		return fmt.Errorf("erro ao serializar os dados para JSON: %v", err)
+	}
+
+	// Escreve os dados no arquivo
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("erro ao escrever no arquivo JSON: %v", err)
+	}
+
+	return nil
 }
 
 func serverAPICommunication(server *Servidor) {
@@ -230,75 +330,227 @@ func serverAPICommunication(server *Servidor) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Nenhum posto encontrado"})
 			return
 		}
-
 		// Retorna os postos como JSON
 		c.JSON(http.StatusOK, postos)
 	})
 
+	r.GET("/postos/disponiveis", func(c *gin.Context) {
+		postos, err := server.getPostosDisponiveis()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if len(postos) == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "nenhum posto disponível encontrado"})
+			return
+		}
+		c.JSON(http.StatusOK, postos)
+	})
+
+	r.PATCH("/postos/:id/adicionar", func(c *gin.Context) {
+		id := c.Param("id")
+		var carro consts.Carro
+		if err := c.ShouldBindJSON(&carro); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos"})
+			return
+		}
+
+		postos, err := server.getPostosFromJSON()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		var postoAtualizado *consts.Posto
+		for _, p := range postos {
+			if p.Id == id {
+				// Verifica se já existe um carro na fila
+				if len(p.Fila) > 0 {
+					c.JSON(http.StatusConflict, gin.H{"error": "Já existe um carro na fila"})
+					return
+				}
+				// Adiciona o carro à fila
+				p.Fila = append(p.Fila, carro)
+				postoAtualizado = p
+				break
+			}
+		}
+
+		if postoAtualizado == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Posto não encontrado"})
+			return
+		}
+
+		if err := server.atualizarArquivo(arquivoPontos, postos); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar o arquivo JSON"})
+			return
+		}
+
+		c.JSON(http.StatusOK, postoAtualizado)
+	})
+
+	r.PATCH("/postos/:id/remover", func(c *gin.Context) {
+		id := c.Param("id")
+		var carro consts.Carro
+		if err := c.ShouldBindJSON(&carro); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos"})
+			return
+		}
+
+		postos, err := server.getPostosFromJSON()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		var postoAtualizado *consts.Posto
+		for _, p := range postos {
+			if p.Id == id {
+				for i, c := range p.Fila {
+					if c.ID == carro.ID {
+						p.Fila = append(p.Fila[:i], p.Fila[i+1:]...)
+						postoAtualizado = p
+						break
+					}
+				}
+				break
+			}
+		}
+
+		if postoAtualizado == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Posto ou carro não encontrado"})
+			return
+		}
+
+		if err := server.atualizarArquivo(arquivoPontos, postos); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar o arquivo JSON"})
+			return
+		}
+
+		c.JSON(http.StatusOK, postoAtualizado)
+	})
+
 	// Inicia o servidor HTTP na porta 8080
-	if err := r.Run(":8080"); err != nil {
-		log.Fatalf("[SERVIDOR] Erro ao iniciar servidor HTTP com Gin: %v", err)
+	porta := os.Getenv("PORTA")
+	if porta == "" {
+		log.Fatalf("[SERVIDOR] Erro ao iniciar servidor HTTP com Gin: variável de ambiente PORTA não definida")
 	}
+	r.Run(":" + porta)
+}
+
+func (s *Servidor) getPostosDisponiveis() ([]*consts.Posto, error) {
+	postos, err := s.getPostosFromJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	var postosDisponiveis []*consts.Posto
+	for _, posto := range postos {
+		if len(posto.Fila) == 0 { // Verifica se a fila está vazia
+			postosDisponiveis = append(postosDisponiveis, posto)
+		}
+	}
+
+	if len(postosDisponiveis) == 0 {
+		return nil, fmt.Errorf("nenhum posto disponível encontrado")
+	}
+
+	return postosDisponiveis, nil
+}
+
+func (s *Servidor) ObterPostosDeOutroServidor(url string) ([]*consts.Posto, error) {
+	log.Printf("[SERVIDOR] Enviando requisição para %s/postos", url)
+
+	// Cria a requisição HTTP GET
+	resp, err := http.Get(url + "/postos/disponiveis")
+	if err != nil {
+		return nil, fmt.Errorf("erro ao enviar requisição para %s: %v", url, err)
+	}
+	defer resp.Body.Close()
+
+	// Verifica o status da resposta
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("requisição falhou com status %d", resp.StatusCode)
+	}
+
+	// Decodifica o JSON da resposta
+	var postos []consts.Posto
+	if err := json.NewDecoder(resp.Body).Decode(&postos); err != nil {
+		return nil, fmt.Errorf("erro ao decodificar resposta JSON: %v", err)
+	}
+
+	// Convert to []*consts.Posto
+	var postosPointers []*consts.Posto
+	for i := range postos {
+		postosPointers = append(postosPointers, &postos[i])
+	}
+	log.Printf("[SERVIDOR] Postos recebidos de %s: %+v", url, postos)
+	return postosPointers, nil
+
 }
 
 func main() {
 	log.Println("[SERVIDOR] Inicializando...")
 
-	go serverCarConnection()
-	go serverAPICommunication(&Servidor{})
+	server := inicializarServidor()
+	server.AssinarEventosDoCarro()
 
-	// routerServidor := server.Client.Router
-	// routerServidor.Register("car/+/request/reservation", func(payload []byte) {
-	// 	var msg consts.Mensagem
-	// 	if err := json.Unmarshal(payload, &msg); err != nil {
-	// 		log.Println("Erro ao decodificar mensagem:", err)
-	// 		return
-	// 	}
-	// 	log.Printf("[SERVIDOR] Solicitação de reserva recebida de car/%s", msg.CarroMQTT.ID)
-	// 	server.ResponderCarro(msg.CarroMQTT.ID, "Reservado!")
-	// })
+	go serverAPICommunication(&server)
+	time.Sleep(10 * time.Second)
+	log.Println("[SERVIDOR] Iniciando comunicação MQTT...")
 
-	// teste de conexção mqtt
-	/*	routerServidor := server.Client.Router
+	topic := topics.CarroRequestRotas("+", server.Cidade)
+	server.Client.Subscribe(topic)
+	log.Printf("[SERVIDOR] Assinando tópico: %s", topic)
 
-				routerServidor.Register("car/+/request/reservation", func(payload []byte) {
-					var msg consts.Mensagem
-					if err := json.Unmarshal(payload, &msg); err != nil {
-						log.Println("Erro ao decodificar mensagem:", err)
-						return
+	routerServidor := server.Client.Router
+	routerServidor.Register(topic, func(payload []byte) {
+		log.Println("Mensagem Recebida!")
+		var conteudoMsg consts.Trajeto
+		if err := json.Unmarshal(payload, &conteudoMsg); err != nil {
+			log.Println("Erro ao decodificar mensagem:", err)
+		}
+		dadosRotas := lerRotas()
+		// rotasValidas := calcularRotas(dadosRotas.Rotas, conteudoMsg)
+		log.Println("Rotas válidas: ", dadosRotas.Rotas)
+		log.Println("Cidades: ", dadosRotas.Cidades)
+		var mapaCompleto = make(map[string][]*consts.Posto) // Inicializa o mapa
+		var paradas []consts.Parada
+		for _, rota := range dadosRotas.Rotas {
+			for _, cidade := range rota {
+				if cidade == server.Cidade {
+					mapaCompleto[cidade] = server.carregarPontos() // esse metodo é local
+				} else {
+					// Obtém o container e a porta com base na cidade
+					config, exists := cidadeConfig[cidade]
+					if !exists {
+						log.Printf("Configuração não encontrada para a cidade: %s", cidade)
+						continue
 					}
-					log.Printf("[SERVIDOR] Solicitação de reserva recebida de car/%s", msg.CarroMQTT.ID)
-					server.ResponderCarro(msg.CarroMQTT.ID, "Reservado!")
-				})
-
-				routerServidor.Register(topics.CarroRequestCancel("+"), func(payload []byte) {
-					var msg consts.Mensagem
-					if err := json.Unmarshal(payload, &msg); err != nil {
-						log.Println("Erro ao decodificar mensagem:", err)
-						return
+					url := "http://servidor-" + config.Container + ":" + config.Porta
+					log.Printf("URL: %s", url)
+					postos, err := server.ObterPostosDeOutroServidor(url) // obter a partir do http
+					if err != nil {
+						log.Printf("Erro ao obter postos de outro servidor: %v", err)
+						continue
 					}
-					log.Printf("[SERVIDOR] Solicitação de cancelamento recebida de car/%s", msg.CarroMQTT.ID)
-				})
+					// Adiciona os postos ao mapa no formato esperado
+					mapaCompleto[cidade] = postos
 				}
-		// teste para atualizar o json
-			novoPosto := map[string]interface{}{
-				"id":         "BA04",            // ID do posto a ser atualizado
-				"name":       "Posto 7 - Bahia", // Novo nome do posto
-				"x":          777.87,            // Novo valor de X
-				"y":          -777.98,           // Novo valor de Y
-				"capacidade": 777.0,             // Nova capacidade
-				"custoKW":    2.18,              // Novo custo por kWh
 			}
+			paradas := rotaslib.GerarRotas(
+				conteudoMsg.CarroMQTT,
+				rota,
+				dadosRotas.Cidades,
+				mapaCompleto,
+			)
+			log.Println("Paradas: ", paradas)
+		}
+		ConteudoJSON, _ := json.Marshal(paradas)
+		topic := topics.ServerResponteRoutes(conteudoMsg.CarroMQTT.ID, server.Cidade)
+		log.Printf("[SERVIDOR] Respondendo para: %s", topic)
+		server.Client.Publish(topic, ConteudoJSON)
+	})
 
-			// Chamar a função para atualizar ou adicionar o posto
-			err := server.adicionarAoArquivo(arquivo, novoPosto)
-			if err != nil {
-				// Se ocorrer algum erro, imprime e encerra
-				fmt.Println("Erro:", err)
-			} else {
-				// Caso contrário, confirma que o posto foi atualizado
-				fmt.Println("Posto com ID 'BA04' atualizado com sucesso!")
-			}
-	*/
 	select {} // mantém o servidor ativo
 }
