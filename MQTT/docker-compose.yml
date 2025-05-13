@@ -22,6 +22,7 @@ services:
     ports:
       - "8080:8080"  # Mapeia a porta 8080 do container para a 8080 do host
     environment:
+      - PORTA=8080
       - CIDADE=FeiraDeSantana
       - ARQUIVO_JSON=/data/FeiraDeSantana.json
     depends_on:
@@ -34,24 +35,25 @@ services:
     volumes:
       - ./utils/data:/data
     ports:
-      - "8081:8080"  # Mapeia a porta 8080 do container para a 8080 do host
+      - "8081:8080"  # Mapeia a porta 8081 do container para a 8080 do host
     environment:
+      - PORTA=8081
       - CIDADE=Ilheus
       - ARQUIVO_JSON=/data/Ilheus.json
     depends_on:
       - mosquitto
   
-  servidor-salvador:
-    build:
-      context: .
-      dockerfile: ./Servidor/Dockerfile
-    volumes:
-      - ./utils/data:/data
-    ports:
-      - "8082:8080"  # Mapeia a porta 8080 do container para a 8080 do host
-    environment:
-      - CIDADE=Salvador
-      - ARQUIVO_JSON=/data/Salvador.json
-    depends_on:
-      - mosquitto
+  # servidor-salvador:
+  #   build:
+  #     context: .
+  #     dockerfile: ./Servidor/Dockerfile
+  #   volumes:
+  #     - ./utils/data:/data
+  #   ports:
+  #     - "8082:8080"  # Mapeia a porta 8080 do container para a 8080 do host
+  #   environment:
+  #     - CIDADE=Salvador
+  #     - ARQUIVO_JSON=/data/Salvador.json
+  #   depends_on:
+  #     - mosquitto
   

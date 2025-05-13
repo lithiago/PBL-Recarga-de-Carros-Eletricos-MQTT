@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -105,12 +106,6 @@ func inicializarServidor() Servidor {
 		IP:     ip,
 		Client: mqttClient,
 	}
-}
-
-func serverCarConnection() {
-	server := inicializarServidor()
-	server.Pontos = server.carregarPontos()
-	server.AssinarEventosDoCarro()
 }
 
 func (s *Servidor) atualizarArquivo(filePath string, postos []*consts.Posto) error {
@@ -311,71 +306,72 @@ func serverAPICommunication(server *Servidor) {
 	})
 
 	// Inicia o servidor HTTP na porta 8080
-	if err := r.Run(":8080"); err != nil {
-		log.Fatalf("[SERVIDOR] Erro ao iniciar servidor HTTP com Gin: %v", err)
+	porta := os.Getenv("PORTA")
+	if porta == "" {
+		log.Fatalf("[SERVIDOR] Erro ao iniciar servidor HTTP com Gin: variável de ambiente PORTA não definida")
 	}
+	r.Run(":" + porta)
 }
 
 // TODO : IMPLEMENTAR O 2PC
+// TODO: adicionar o mutex no server
+
+// funciona
+func (s *Servidor) ObterPostosDeOutroServidor(url string) ([]*consts.Posto, error) {
+	log.Printf("[SERVIDOR] Enviando requisição para %s/postos", url)
+
+	// Cria a requisição HTTP GET
+	resp, err := http.Get(url + "/postos")
+	if err != nil {
+		return nil, fmt.Errorf("erro ao enviar requisição para %s: %v", url, err)
+	}
+	defer resp.Body.Close()
+
+	// Verifica o status da resposta
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("requisição falhou com status %d", resp.StatusCode)
+	}
+
+	// Decodifica o JSON da resposta
+	var postos []*consts.Posto
+	if err := json.NewDecoder(resp.Body).Decode(&postos); err != nil {
+		return nil, fmt.Errorf("erro ao decodificar resposta JSON: %v", err)
+	}
+
+	log.Printf("[SERVIDOR] Postos recebidos de %s: %+v", url, postos)
+	return postos, nil
+}
+
+// func exemploUso(server *Servidor) {
+// 	urlOutroServidor := "http://localhost:8080" // URL do outro servidor
+
+// 	postos, err := server.ObterPostosDeOutroServidor(urlOutroServidor)
+// 	if err != nil {
+// 		log.Printf("Erro ao obter postos do servidor %s: %v", urlOutroServidor, err)
+// 		return
+// 	}
+
+// 	log.Printf("Postos recebidos do servidor %s: %+v", urlOutroServidor, postos)
+// }
 
 func main() {
 	log.Println("[SERVIDOR] Inicializando...")
 
-	go serverCarConnection()
-	go serverAPICommunication(&Servidor{})
+	server := inicializarServidor()
+	server.Pontos = server.carregarPontos()
+	server.AssinarEventosDoCarro()
 
-	// routerServidor := server.Client.Router
-	// routerServidor.Register("car/+/request/reservation", func(payload []byte) {
-	// 	var msg consts.Mensagem
-	// 	if err := json.Unmarshal(payload, &msg); err != nil {
-	// 		log.Println("Erro ao decodificar mensagem:", err)
-	// 		return
-	// 	}
-	// 	log.Printf("[SERVIDOR] Solicitação de reserva recebida de car/%s", msg.CarroMQTT.ID)
-	// 	server.ResponderCarro(msg.CarroMQTT.ID, "Reservado!")
-	// })
+	go serverAPICommunication(&server) //antes criava um novo servidor, agora usa o mesmo
+	time.Sleep(60 * time.Second)
+	urlOutroServidor := "http://localhost:8080"
+	log.Printf("Tentando obter postos do servidor %s...", urlOutroServidor)
+	postos, err := server.ObterPostosDeOutroServidor(urlOutroServidor)
+	if err != nil {
+		log.Printf("Erro ao obter postos do servidor %s: %v", urlOutroServidor, err)
+	} else {
+		postosJSON, _ := json.MarshalIndent(postos, "", "  ")
+		log.Printf("Postos recebidos do servidor %s: %+v", urlOutroServidor, string(postosJSON))
+	}
 
-	// teste de conexção mqtt
-	/*	routerServidor := server.Client.Router
-
-				routerServidor.Register("car/+/request/reservation", func(payload []byte) {
-					var msg consts.Mensagem
-					if err := json.Unmarshal(payload, &msg); err != nil {
-						log.Println("Erro ao decodificar mensagem:", err)
-						return
-					}
-					log.Printf("[SERVIDOR] Solicitação de reserva recebida de car/%s", msg.CarroMQTT.ID)
-					server.ResponderCarro(msg.CarroMQTT.ID, "Reservado!")
-				})
-
-				routerServidor.Register(topics.CarroRequestCancel("+"), func(payload []byte) {
-					var msg consts.Mensagem
-					if err := json.Unmarshal(payload, &msg); err != nil {
-						log.Println("Erro ao decodificar mensagem:", err)
-						return
-					}
-					log.Printf("[SERVIDOR] Solicitação de cancelamento recebida de car/%s", msg.CarroMQTT.ID)
-				})
-				}
-		// teste para atualizar o json
-			novoPosto := map[string]interface{}{
-				"id":         "BA04",            // ID do posto a ser atualizado
-				"name":       "Posto 7 - Bahia", // Novo nome do posto
-				"x":          777.87,            // Novo valor de X
-				"y":          -777.98,           // Novo valor de Y
-				"capacidade": 777.0,             // Nova capacidade
-				"custoKW":    2.18,              // Novo custo por kWh
-			}
-
-			// Chamar a função para atualizar ou adicionar o posto
-			err := server.adicionarAoArquivo(arquivo, novoPosto)
-			if err != nil {
-				// Se ocorrer algum erro, imprime e encerra
-				fmt.Println("Erro:", err)
-			} else {
-				// Caso contrário, confirma que o posto foi atualizado
-				fmt.Println("Posto com ID 'BA04' atualizado com sucesso!")
-			}
-	*/
 	select {} // mantém o servidor ativo
 }
