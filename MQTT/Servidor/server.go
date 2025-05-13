@@ -2,14 +2,15 @@ package main
 
 import (
 	consts "MQTT/utils/Constantes"
+	//rotaslib "MQTT/utils/Rotas"
 	topics "MQTT/utils/Topicos"
 	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
-	rotaslib "MQTT/utils/Rotas/Routes"
 	router "MQTT/utils/mqttLib/Router"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net"
+	//"net/http"
 	"os"
 )
 
@@ -18,24 +19,26 @@ type Servidor struct {
 	ID     string
 	Regiao string
 	Client clientemqtt.MQTTClient
-	Pontos []*consts.Posto
+	Pontos map[string][]*consts.Posto
 }
 
 var (
 	arquivo = os.Getenv("ARQUIVO_JSON")
 )
 
-func (s *Servidor) ResponderCarro(carID string, msg string) {
-	topic := topics.ServerResponseToCar(carID)
+// A variavel solicitação é para concatenar a string ao topico evitando multiplas condições
+func (s *Servidor) ResponderCarro(carID string, conteudoJSON []byte, solicitacao string) {
+	topic := topics.ServerResponseToCar(carID) + solicitacao
 	log.Printf("[SERVIDOR] Respondendo para: %s", topic)
-	s.Client.Publish(topic, []byte(msg))
+	s.Client.Publish(topic, conteudoJSON)
 }
 
 func (s *Servidor) AssinarEventosDoCarro() {
 	topicsToSubscribe := []string{
-		topics.CarroRequestReserva("+"),
-		topics.CarroRequestStatus("+"),
-		topics.CarroRequestCancel("+"),
+		topics.CarroRequestReserva("+", s.ID, s.Regiao),
+		topics.CarroRequestStatus("+", s.ID, s.Regiao),
+		topics.CarroRequestCancel("+",s.ID, s.Regiao),
+		topics.CarroRequestRotas("+", s.Regiao),
 	}
 	for _, topic := range topicsToSubscribe {
 		s.Client.Subscribe(topic)
@@ -52,7 +55,7 @@ func getLocalIP() (string, error) {
 	return localAddr.IP.String(), nil
 }
 
-func (s *Servidor) carregarPontos() map[string][]*consts.Posto {
+func (s *Servidor) carregarPontos() []*consts.Posto {
 	filePath := os.Getenv("ARQUIVO_JSON")
 	if filePath == "" {
 		panic("ARQUIVO_JSON não definido")
@@ -63,7 +66,7 @@ func (s *Servidor) carregarPontos() map[string][]*consts.Posto {
 		panic(err)
 	}
 
-	var mapa map[string][]*consts.Posto
+	var mapa map[string][]consts.Posto
 	if err := json.Unmarshal(data, &mapa); err != nil {
 		panic(err)
 	}
@@ -71,16 +74,16 @@ func (s *Servidor) carregarPontos() map[string][]*consts.Posto {
 	cidade := os.Getenv("CIDADE")
 	postos, ok := mapa[cidade]
 	if !ok {
-		panic(fmt.Sprintf("Nenhum dado encontrado para estado: %s", cidade))
+		panic(fmt.Sprintf("Nenhum dado encontrado para cidade: %s", cidade))
 	}
-	s.Regiao = cidade
-
 	// Converte para []*consts.Posto
-	for i, posto:= range postos {
-		log.Printf("Posto %d da cidade de %s: [ %s ]\n",i, cidade, posto)
+	var resultado []*consts.Posto
+	for i := range postos {
+		resultado = append(resultado, &postos[i])
 	}
 
-	return mapa
+	log.Printf("Servidor carregado com %d postos de %s\n", len(resultado), cidade)
+	return resultado
 }
 
 func (s *Servidor) adicionarAoArquivo(path string, novoDado interface{}) error {
@@ -177,7 +180,7 @@ func inicializarServidor() Servidor {
 func lerRotas() consts.DadosRotas {
 	filePath := os.Getenv("ARQUIVO_JSON_ROTAS")
 	if filePath == "" {
-		panic("ARQUIVO_JSON não definido")
+		panic("ARQUIVO_JSON_ROTAS não definido")
 	}
 
 	data, err := os.ReadFile(filePath)
@@ -200,6 +203,7 @@ func desserializarMensagem(payload []byte) consts.Mensagem{
 	}
 	return msg
 }
+
 
 func calcularRotas(rotasPossiveis map[string][]string, trajeto consts.Trajeto) map[int][]string {
 	inicio := trajeto.Inicio
@@ -230,40 +234,57 @@ func calcularRotas(rotasPossiveis map[string][]string, trajeto consts.Trajeto) m
 	return rotasValidas
 }
 
+/* func buscarPostosDeCidade(cidade string) []*consts.Posto {
+    url := fmt.Sprintf("http://%s:8080/postos?cidade=%s", servidorDestino, cidade) // MONTAR A URL
+    resp, err := http.Get(url)
+    // tratar erro, parsear o JSON, etc...
+} */
 
 func main() {
 	log.Println("[SERVIDOR] Inicializando...")
-
+	
 	server := inicializarServidor()
 	server.AssinarEventosDoCarro()
+	server.Regiao = os.Getenv("CIDADE")
+	
+	log.Printf("[SERVIDOR] Região: %s", server.Regiao)
+	topic := topics.CarroRequestRotas("+", server.Regiao)
+	log.Printf("[SERVIDOR] Topico: %s", topic)
 
+	server.Client.Subscribe(topic)
 	routerServidor := server.Client.Router
-	routerServidor.Register(topics.CarroRequestRotas("+"), func(payload []byte) {
-		var conteudoMsg consts.Trajeto
+	routerServidor.Register(topic, func(payload []byte) {
+		log.Println("Mensagem Recebida!")
+		/* var conteudoMsg consts.Trajeto
 		msg := desserializarMensagem(payload)
 		if err := json.Unmarshal(msg.ConteudoJSON, &conteudoMsg); err != nil {
 			log.Println("Erro ao decodificar mensagem:", err)
 		}		
 		dadosRotas := lerRotas()
 		rotasValidas := calcularRotas(dadosRotas.Rotas, conteudoMsg)
-		mapa := server.carregarPontos()
-		for i, rota := range rotasValidas {
+		var mapaCompleto map[string][]*consts.Posto
+		for _, rota := range rotasValidas {
 			log.Printf("Calculando rota %d: %v\n", i+1, rota)
-		
-			paradas := rotaslib.gerarRotas(
+			
+			// AQUI O SERVIDOR DEVE SOLICITAR AOS OUTROS SERVIDORES VIA HTTP OS SEUS PONTOS PARA ASSIM PODER GERAR ROTAS. SÓ FUI OBSERVAR ISSO AGORA. MAS COMO EU VOU MONTAR O MAP PARA PASSAR PRA FUNÇÃO DE GERAR 
+			// ROTAS? 
+			for _, cidade := range rota{
+				if cidade == server.Regiao{
+					mapaCompleto[cidade] = server.carregarPontos() // esse metodo é local
+				} else {
+					mapaCompleto[cidade] = buscarPontosDeCidade(cidade) // obter a partir do http
+				}
+			}
+			paradas := rotaslib.GerarRotas(
 				conteudoMsg.CarroMQTT,
 				rota,
 				dadosRotas.Cidades,
-				mapa,
+				mapaCompleto,
 			)
-		
-			for cidade, lista := range paradas {
-				log.Printf("  Paradas em %s:", cidade)
-				for _, p := range lista {
-					log.Printf("    - %s (%0.f, %0.f)", p.PostoRecarga.Name, p.PostoRecarga.X, p.PostoRecarga.Y)
-				}
-			}
+			
 		}
+		ConteudoJSON, _ := json.Marshal(msg)
+		server.ResponderCarro(conteudoMsg.CarroMQTT.ID, ConteudoJSON, "/routes") */
 	})
 
 	// teste de conexção mqtt

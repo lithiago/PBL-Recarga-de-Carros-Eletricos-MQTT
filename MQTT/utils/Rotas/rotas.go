@@ -1,4 +1,4 @@
-package routes
+package Rotas
 
 import (
 	consts "MQTT/utils/Constantes"
@@ -17,9 +17,7 @@ func calcularAutonomia(consumoKW, capacidadeBateria float64) float64 {
 	}
 	return capacidadeBateria / consumoKW
 }
-
-// Gera paradas para uma rota específica (lista de cidades)
-func gerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coordenadas, postosPorCidade map[string][]consts.Posto) map[string][]consts.Parada {
+func GerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coordenadas, postosPorCidade map[string][]*consts.Posto) map[string][]consts.Parada {
 	paradasPorCidade := make(map[string][]consts.Parada)
 	autonomiaTotal := calcularAutonomia(carro.Consumobateria, 100)
 	autonomiaAtual := calcularAutonomia(carro.Consumobateria, carro.Bateria)
@@ -33,8 +31,7 @@ func gerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coo
 
 		distanciaTotal := calcularDistancia(destino, posicaoAtual)
 		numeroDeParadas := distanciaTotal / autonomiaTotal
-		if numeroDeParadas < 1 && calcularDistancia(posicaoAtual, destino) <= autonomiaAtual {
-			// Consegue chegar direto
+		if numeroDeParadas < 1 && distanciaTotal <= autonomiaAtual {
 			posicaoAtual = destino
 			continue
 		}
@@ -45,16 +42,16 @@ func gerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coo
 		for {
 			menorDist := math.MaxFloat64
 			var postoMaisProximo consts.Posto
+			var cidadeParada string
 			encontrou := false
 
 			for cidadeAtual, postos := range postosPorCidade {
 				for _, posto := range postos {
 					dist := calcularDistancia(consts.Coordenadas{X: posto.X, Y: posto.Y}, posicaoAtual)
-
 					if dist <= autonomiaAtual && dist >= fatorProgresso*distanciaPorParada && dist < menorDist {
 						menorDist = dist
-						postoMaisProximo = posto
-						cidade = cidadeAtual
+						postoMaisProximo = *posto
+						cidadeParada = cidadeAtual
 						encontrou = true
 					}
 				}
@@ -65,10 +62,10 @@ func gerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coo
 			}
 
 			parada := consts.Parada{
-				Cidade:       cidade,
+				Cidade:       cidadeParada,
 				PostoRecarga: postoMaisProximo,
 			}
-			paradasPorCidade[cidade] = append(paradasPorCidade[cidade], parada)
+			paradasPorCidade[cidadeParada] = append(paradasPorCidade[cidadeParada], parada)
 			posicaoAtual = consts.Coordenadas{X: postoMaisProximo.X, Y: postoMaisProximo.Y}
 			autonomiaAtual = autonomiaTotal
 
@@ -81,8 +78,3 @@ func gerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coo
 
 	return paradasPorCidade
 }
-
-
-
-
-

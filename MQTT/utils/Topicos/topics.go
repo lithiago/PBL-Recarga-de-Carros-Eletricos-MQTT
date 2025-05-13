@@ -4,14 +4,22 @@ import "fmt"
 
 // Carro → Servidor
 func CarroConnect() string      { return "car/+/request/connect" }
-func CarroRequestReserva(carID string) string     { return fmt.Sprintf("car/%s/request/reservation", carID) }
-func CarroRequestRotas(carID string) string     { return fmt.Sprintf("car/%s/request/routes", carID) }
-func CarroRequestStatus(carID string) string      { return fmt.Sprintf("car/%s/request/status", carID) }
-func CarroRequestCancel(carID string) string      { return fmt.Sprintf("car/%s/request/cancel", carID) }
+func CarroRequestReserva(carID string, serverID string, cidade string) string     { return fmt.Sprintf("car/%s/request/reserva/%s/%s", carID, cidade,serverID) }
+func CarroRequestRotas(carID string, cidade string) string     { return fmt.Sprintf("car/%s/request/rotas/%s", carID, cidade) }
+
+
+
+func CarroRequestToServer(carID string, cidade string, TipoDeSolicitacao string) string     { return fmt.Sprintf("car/%s/request/%s/%s", carID, cidade, TipoDeSolicitacao) }
+
+
+
+func CarroRequestStatus(carID string, serverID string, cidade string) string      { return fmt.Sprintf("car/%s/request/status/%s/%s", carID, cidade, serverID) }
+func CarroRequestCancel(carID string, cidade string, serverID string ) string      { return fmt.Sprintf("car/%s/request/cancel/%s/%s", carID, cidade, carID) }
 
 // Servidor → Carro
 func ServerResponseToCar(carID string) string { return fmt.Sprintf("server/response/%s", carID) }
 func ServerNotifyCar(serverID, carID string) string     { return fmt.Sprintf("server/%s/notify/%s", serverID, carID) }
+func ServerResponteRoutes(carID string, cidade string) string { return fmt.Sprintf("server/%s/rotas/%s", carID, cidade)}
 
 // Servidor → Posto
 func ServerCommandReserve(stationID string) string { return fmt.Sprintf("station/%s/command/reserve", stationID) }
