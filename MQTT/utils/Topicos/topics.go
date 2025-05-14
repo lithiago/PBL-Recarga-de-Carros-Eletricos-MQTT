@@ -1,11 +1,14 @@
 package topics
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Carro → Servidor
 func CarroConnect() string      { return "car/+/request/connect" }
 func CarroRequestReserva(carID string, serverID string, cidade string) string     { return fmt.Sprintf("car/%s/request/reserva/%s/%s", carID, cidade,serverID) }
-func CarroRequestRotas(carID string, cidade string) string     { return fmt.Sprintf("car/%s/request/rotas/%s", carID, cidade) }
+func CarroRequestRotas(carID string, cidade string) string     { return fmt.Sprintf("car/%s/request/rotas/%s", carID, strings.ToLower(cidade)) }
 
 
 
@@ -19,7 +22,7 @@ func CarroRequestCancel(carID string, cidade string, serverID string ) string   
 // Servidor → Carro
 func ServerResponseToCar(carID string) string { return fmt.Sprintf("server/response/%s", carID) }
 func ServerNotifyCar(serverID, carID string) string     { return fmt.Sprintf("server/%s/notify/%s", serverID, carID) }
-func ServerResponteRoutes(carID string, cidade string) string { return fmt.Sprintf("server/%s/rotas/%s", carID, cidade)}
+func ServerResponteRoutes(carID string, cidade string) string { return fmt.Sprintf("server/%s/rotas/%s", carID, strings.ToLower(cidade))}
 
 // Servidor → Posto
 func ServerCommandReserve(stationID string) string { return fmt.Sprintf("station/%s/command/reserve", stationID) }

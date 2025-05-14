@@ -1,31 +1,28 @@
 {
     "Salvador": [
         {
-            "id": "BA01",
+            "id": "SSA01",
             "name": "Posto 1 - Salvador",
-            "cidade": "Salvador",
             "x": 152,
             "y": 249,
-            "Fila": [],
-            "custoKW": 0.91
+            "custoKW": 0.91,
+            "Fila": []
         },
         {
             "id": "BA02",
             "name": "Posto 2 - Salvador",
-            "cidade": "Salvador",
             "x": 149,
             "y": 253,
-            "Fila": [],
-            "custoKW": 0.95
+            "custoKW": 0.95,
+            "Fila": []
         },
         {
             "id": "BA03",
             "name": "Posto 3 - Salvador",
-            "cidade": "Salvador",
             "x": 155,
             "y": 245,
-            "Fila": [],
-            "custoKW": 0.96
+            "custoKW": 0.96,
+            "Fila": []
         }
     ]
 }

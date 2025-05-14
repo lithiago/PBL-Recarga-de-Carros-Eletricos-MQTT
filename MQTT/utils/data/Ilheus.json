@@ -1,0 +1,28 @@
+{
+  "Ilheus":[
+    {
+      "id": "IL01",
+      "nome": "Posto 1 - Ilheus",
+      "x": 299,
+      "y": 105,
+      "custoKW": 0.75,
+      "Fila": []
+    },
+    {
+      "id": "IL02",
+      "name": "Posto 2 - Ilheus",
+      "x": 300,
+      "y": 95,
+      "custoKW": 1.23,
+      "Fila": []
+    },
+    {
+      "id": "IL03",
+      "name": "Posto 3 - Ilheus",
+      "x": 303,
+      "y": 103,
+      "custoKW": 0.53,
+      "Fila": []
+    }
+  ]
+}

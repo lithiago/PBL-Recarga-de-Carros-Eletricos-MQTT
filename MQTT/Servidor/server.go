@@ -10,10 +10,12 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Servidor struct {
@@ -28,6 +30,16 @@ var (
 	arquivoPontos = os.Getenv("ARQUIVO_JSON")
 )
 
+// Mapa de cidades para containers e portas
+var cidadeConfig = map[string]struct {
+	Container string
+	Porta     string
+}{
+	"feiradesantana": {"feiradesantana", "8080"},
+	"salvador":       {"salvador", "8082"},
+	"ilheus":         {"ilheus", "8081"},
+}
+
 // A variavel solicitação é para concatenar a string ao topico evitando multiplas condições
 func (s *Servidor) ResponderCarro(carID string, conteudoJSON []byte) {
 	topic := topics.ServerResponseToCar(carID)
@@ -39,7 +51,7 @@ func (s *Servidor) AssinarEventosDoCarro() {
 	topicsToSubscribe := []string{
 		topics.CarroRequestReserva("+", s.ID, s.Cidade),
 		topics.CarroRequestStatus("+", s.ID, s.Cidade),
-		topics.CarroRequestCancel("+",s.ID, s.Cidade),
+		topics.CarroRequestCancel("+", s.ID, s.Cidade),
 		topics.CarroRequestRotas("+", s.Cidade),
 	}
 	for _, topic := range topicsToSubscribe {
@@ -57,7 +69,7 @@ func getLocalIP() (string, error) {
 	return localAddr.IP.String(), nil
 }
 
-func (s *Servidor) carregarPontos() []*consts.Posto {
+func (s *Servidor) carregarPontos() []consts.Posto {
 	filePath := os.Getenv("ARQUIVO_JSON")
 	if filePath == "" {
 		panic("ARQUIVO_JSON não definido")
@@ -85,7 +97,7 @@ func (s *Servidor) carregarPontos() []*consts.Posto {
 	}
 
 	log.Printf("Servidor carregado com %d postos de %s\n", len(resultado), cidade)
-	return resultado
+	return postos
 }
 
 func (s *Servidor) adicionarAoArquivo(path string, novoDado interface{}) error {
@@ -122,7 +134,6 @@ func (s *Servidor) adicionarAoArquivo(path string, novoDado interface{}) error {
 			postos[i].Nome = novoPosto["name"].(string)
 			postos[i].X = novoPosto["x"].(float64)
 			postos[i].Y = novoPosto["y"].(float64)
-			postos[i].Capacidade = novoPosto["capacidade"].(float64)
 			postos[i].CustoKW = novoPosto["custoKW"].(float64)
 			postoAtualizado = true
 			break
@@ -136,7 +147,6 @@ func (s *Servidor) adicionarAoArquivo(path string, novoDado interface{}) error {
 			Nome:       novoPosto["name"].(string),
 			X:          novoPosto["x"].(float64),
 			Y:          novoPosto["y"].(float64),
-			Capacidade: novoPosto["capacidade"].(float64),
 			CustoKW:    novoPosto["custoKW"].(float64),
 		}
 		postos = append(postos, novoPostoStruturado)
@@ -179,7 +189,6 @@ func inicializarServidor() Servidor {
 	}
 }
 
-
 func lerRotas() consts.DadosRotas {
 	filePath := os.Getenv("ARQUIVO_JSON_ROTAS")
 	if filePath == "" {
@@ -198,7 +207,7 @@ func lerRotas() consts.DadosRotas {
 	return dados
 }
 
-func desserializarMensagem(payload []byte) consts.Mensagem{
+func desserializarMensagem(payload []byte) consts.Mensagem {
 	var msg consts.Mensagem
 	if err := json.Unmarshal(payload, &msg); err != nil {
 		log.Println("Erro ao decodificar mensagem:", err)
@@ -206,7 +215,6 @@ func desserializarMensagem(payload []byte) consts.Mensagem{
 	}
 	return msg
 }
-
 
 // func calcularRotas(rotasPossiveis map[string][]string, trajeto consts.Trajeto) map[int][]string {
 //     inicio := trajeto.Inicio
@@ -250,34 +258,43 @@ func getRotasValidas(rotasPossiveis map[string][]string, trajeto consts.Trajeto)
 	inicio := trajeto.Inicio
 	destino := trajeto.Destino
 	mapaCompleto := make(map[string][]string)
-
-	log.Printf("Início: %s, Destino: %s", inicio, destino)
-
 	// Itera sobre as rotas possíveis
+	log.Printf("Início: %s, Destino: %s", inicio, destino)
 	for i, rota := range rotasPossiveis {
-		// Encontra o índice do destino na rota
 		var indiceDestino int
 		var encontrouDestino bool
-
 		// Percorre as cidades da rota para verificar onde o destino está
 		for j, cidade := range rota {
-			if cidade == destino {
+
+			// Verifica se o destino foi encontrado (case insensitive)
+			if strings.EqualFold(cidade, destino) {
 				indiceDestino = j
 				encontrouDestino = true
 				break
 			}
 		}
-		// Se o destino foi encontrado, corta a rota até o índice do destino
-		if encontrouDestino && indiceDestino > 0 {
-			// Verifica se o início está na rota
-			mapaCompleto[i] = rota[:indiceDestino+1]
+		// Se o destino foi encontrado, verifica se o início está na rota antes do destino
+		if encontrouDestino {
+			var encontrouInicio bool
+			// Percorre até o índice do destino para verificar se o início está na rota
+			for _, cidade := range rota[:indiceDestino+1] {
+				if strings.EqualFold(cidade, inicio) {
+					encontrouInicio = true
+					break
+				}
+			}
+			// Se o início foi encontrado e está antes do destino, adiciona a rota
+			if encontrouInicio {
+				mapaCompleto[i] = rota[:indiceDestino+1]
+			}
 		}
-		 
 	}
+
+	// Log para verificar o mapa final
+	log.Println("Rotas válidas:", mapaCompleto)
 
 	return mapaCompleto
 }
-
 
 func (s *Servidor) getPostosFromJSON() ([]*consts.Posto, error) {
 	filePath := arquivoPontos
@@ -338,7 +355,6 @@ func (s *Servidor) atualizarArquivo(filePath string, postos []*consts.Posto) err
 
 	return nil
 }
-
 
 func serverAPICommunication(server *Servidor) {
 	log.Println("[SERVIDOR] Iniciando comunicação API REST entre servidores com Gin...")
@@ -484,7 +500,6 @@ func (s *Servidor) getPostosDisponiveis() ([]*consts.Posto, error) {
 	return postosDisponiveis, nil
 }
 
-
 func (s *Servidor) ObterPostosDeOutroServidor(url string) ([]*consts.Posto, error) {
 	log.Printf("[SERVIDOR] Enviando requisição para %s/postos", url)
 
@@ -518,41 +533,44 @@ func (s *Servidor) ObterPostosDeOutroServidor(url string) ([]*consts.Posto, erro
 
 func main() {
 	log.Println("[SERVIDOR] Inicializando...")
-	
+
 	server := inicializarServidor()
 	server.AssinarEventosDoCarro()
-	
-	
+
 	go serverAPICommunication(&server)
 	time.Sleep(10 * time.Second)
 	log.Println("[SERVIDOR] Iniciando comunicação MQTT...")
-	
-	topic := topics.CarroRequestRotas("+", server.Cidade)
+
+	topic := topics.CarroRequestRotas("+", strings.ToLower(server.Cidade))
 	server.Client.Subscribe(topic)
 	log.Printf("[SERVIDOR] Assinando tópico: %s", topic)
-	
+
 	routerServidor := server.Client.Router
 	routerServidor.Register(topic, func(payload []byte) {
 		log.Println("Mensagem Recebida!")
 		var conteudoMsg consts.Trajeto
 		if err := json.Unmarshal(payload, &conteudoMsg); err != nil {
 			log.Println("Erro ao decodificar mensagem:", err)
-		}		
+		}
 		dadosRotas := lerRotas()
 		rotasValidas := getRotasValidas(dadosRotas.Rotas, conteudoMsg)
-		log.Println("Rotas válidas: ", dadosRotas.Rotas)
-		log.Println("Cidades: ", dadosRotas.Cidades)
-		var mapaCompleto = make(map[string][]*consts.Posto) // Inicializa o mapa
+		log.Println("Rotas válidas: ", rotasValidas)
+		var mapaCompleto = make(map[string][]consts.Posto) // Inicializa o mapa
 		var paradas []consts.Parada
-		for _, rota := range rotasValidas {			
-			// AQUI O SERVIDOR DEVE SOLICITAR AOS OUTROS SERVIDORES VIA HTTP OS SEUS PONTOS PARA ASSIM PODER GERAR ROTAS. SÓ FUI OBSERVAR ISSO AGORA. MAS COMO EU VOU MONTAR O MAP PARA PASSAR PRA FUNÇÃO DE GERAR 
-			// ROTAS? 
-			for _, cidade := range rota{
+		for _, rota := range rotasValidas {
+			// AQUI O SERVIDOR DEVE SOLICITAR AOS OUTROS SERVIDORES VIA HTTP OS SEUS PONTOS PARA ASSIM PODER GERAR ROTAS. SÓ FUI OBSERVAR ISSO AGORA. MAS COMO EU VOU MONTAR O MAP PARA PASSAR PRA FUNÇÃO DE GERAR
+			// ROTAS?
+			for _, cidade := range rota {
 				if cidade == server.Cidade {
 					mapaCompleto[cidade] = server.carregarPontos() // esse metodo é local
 				} else {
+					config, exists := cidadeConfig[cidade]
+					if !exists {
+						log.Printf("Configuração não encontrada para a cidade: %s", cidade)
+						continue
+					}
 
-					url := "http://servidor-" + os.Getenv("CONTAINER") + ":" + os.Getenv("PORTA")
+					url := "http://servidor-" + config.Container + ":" + config.Porta
 					log.Printf("URL: %s", url)
 					postos, err := server.ObterPostosDeOutroServidor(url) // obter a partir do http
 					if err != nil {
@@ -560,9 +578,15 @@ func main() {
 						continue
 					}
 					// Adiciona os postos ao mapa no formato esperado
-					mapaCompleto[cidade] = postos
+					var postosSemPonteiro []consts.Posto
+					for _, posto := range postos {
+						postosSemPonteiro = append(postosSemPonteiro, *posto)
+					}
+					mapaCompleto[cidade] = postosSemPonteiro
 				}
 			}
+
+			log.Println("Mapa completo: ", mapaCompleto)
 			paradas := rotaslib.GerarRotas(
 				conteudoMsg.CarroMQTT,
 				rota,
@@ -570,7 +594,7 @@ func main() {
 				mapaCompleto,
 			)
 			log.Println("Paradas: ", paradas)
-			
+
 		}
 		ConteudoJSON, _ := json.Marshal(paradas)
 		topic := topics.ServerResponteRoutes(conteudoMsg.CarroMQTT.ID, server.Cidade)

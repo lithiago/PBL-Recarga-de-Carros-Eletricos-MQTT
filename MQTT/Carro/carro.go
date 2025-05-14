@@ -15,13 +15,15 @@ import (
 
 
 type Carro struct {
-	ID        string                     `json:"id"`
-	Bateria   float64                        `json:"bateria"`
-	Clientemqtt clientemqtt.MQTTClient `json:"-"`
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-	Consumobateria float64 `json:"consumobateria"`
+	ID             string                 `json:"id"`
+	Bateria        float64                `json:"bateria"`
+	Clientemqtt    clientemqtt.MQTTClient `json:"-"`
+	X              float64                `json:"x"`
+	Y              float64                `json:"y"`
+	CapacidadeBateria float64                `json:"capacidadebateria"`
+	Consumobateria float64                `json:"consumobateria"`
 }
+
 // tem que ajsutar essa função
 func (c *Carro) SolicitarReserva(cidadeDestino string, serverID string) {
 	topic := topics.CarroRequestReserva(c.ID, serverID, cidadeDestino)
@@ -112,6 +114,7 @@ func main() {
 		Clientemqtt:    mqttClient,
 		X:              152.0,
 		Y:              249.0,
+		CapacidadeBateria: 40.0,
 		Consumobateria: 0.15,
 	}
 

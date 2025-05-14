@@ -30,5 +30,10 @@ func (m *MQTTClient) Subscribe(topic string) {
 	})
 }
 func (m *MQTTClient) Publish(topic string, payload []byte) {
-	m.Client.Publish(topic, 0, false, payload)
+	token := m.Client.Publish(topic, 0, false, payload)
+	if token.Error() != nil {
+        log.Printf("[CARRO] Erro ao publicar: %v", token.Error())
+    } else {
+        log.Println("[CARRO] Mensagem publicada com sucesso")
+    }
 }

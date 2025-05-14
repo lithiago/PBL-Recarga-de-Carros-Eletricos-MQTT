@@ -8,14 +8,13 @@ import (
 )
 
 type Posto struct {
-	Id         string
-	Nome       string
-	Regiao     string
-	X          float64
-	Y          float64
-	Capacidade float64 // Adicionado
-	CustoKW    float64 // Adicionado
-	Fila       []Carro
+	Id         string `json:"id"`
+	Nome       string `json:"nome"`
+	Cidade     string `json:"cidade"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+	CustoKW    float64 `json:"custokw"`// Adicionado
+	Fila       []Carro `json:"fila"`
 }
 
 type MQTTClient struct {
@@ -29,6 +28,7 @@ type Carro struct {
 	Clientemqtt    clientemqtt.MQTTClient `json:"-"`
 	X              float64                `json:"x"`
 	Y              float64                `json:"y"`
+	CapacidadeBateria float64                `json:"capacidadebateria"`
 	Consumobateria float64                `json:"consumobateria"`
 }
 
@@ -48,13 +48,19 @@ type Coordenadas struct {
 }
 
 type DadosRotas struct {
-	Cidades map[string]Coordenadas `json:"Cidades"`
-	Rotas   map[string][]string    `json:"Rotas"`
+	Cidades map[string]Coordenadas `json:"cidades"`
+	Rotas   map[string][]string    `json:"rotas"`
 }
 type Trajeto struct {
 	CarroMQTT Carro  `json:"carro"`
 	Inicio    string `json:"inicio"`
-	Destino   string `json:"destomp"`
+	Destino   string `json:"destino"`
 }
 
+
+
+type Coordenadas struct {
+	X float64
+	Y float64
+}
 const Broker = "tcp://mosquitto:1845"
