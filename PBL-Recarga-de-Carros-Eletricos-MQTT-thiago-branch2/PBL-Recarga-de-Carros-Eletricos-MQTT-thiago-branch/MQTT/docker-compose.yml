@@ -1,0 +1,66 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    ports:
+      - "1845:1845"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  carro:
+    build:
+      context: .
+      dockerfile: ./Carro/Dockerfile
+    depends_on:
+      - mosquitto
+
+  servidor-feiradesantana:
+    build:
+      context: .
+      dockerfile: ./Servidor/Dockerfile
+    volumes:
+      - ./utils/data:/data
+    ports:
+      - "8080:8080"  # Mapeia a porta 8080 do container para a 8080 do host
+    environment:
+      - PORTA=8080
+      - CIDADE=FeiraDeSantana
+      - ARQUIVO_JSON=/data/FeiraDeSantana.json
+      - ARQUIVO_JSON_ROTAS=/data/Rotas.json
+      - CONTAINER=servidor-feiradesantana
+    depends_on:
+      - mosquitto
+  
+  servidor-ilheus:
+    build:
+      context: .
+      dockerfile: ./Servidor/Dockerfile
+    volumes:
+      - ./utils/data:/data
+    ports:
+      - "8081:8080"  # Mapeia a porta 8081 do container para a 8080 do host
+    environment:
+      - PORTA=8081
+      - CIDADE=Ilheus
+      - ARQUIVO_JSON=/data/Ilheus.json
+      - ARQUIVO_JSON_ROTAS=/data/Rotas.json
+      - CONTAINER=servidor-ilheus
+    depends_on:
+      - mosquitto
+  
+  servidor-salvador:
+    build:
+      context: .
+      dockerfile: ./Servidor/Dockerfile
+    volumes:
+      - ./utils/data:/data
+    ports:
+      - "8082:8080" #Mapeia a porta 8080 do container para a 8080 do host
+    environment:
+      - PORTA=8082
+      - CIDADE=Salvador
+      - ARQUIVO_JSON=/data/Salvador.json
+      - ARQUIVO_JSON_ROTAS=/data/Rotas.json
+      - CONTAINER=servidor-salvador
+    depends_on:
+      - mosquitto
+  
