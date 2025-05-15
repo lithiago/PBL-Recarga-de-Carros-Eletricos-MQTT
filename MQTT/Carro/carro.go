@@ -110,12 +110,12 @@ func main() {
 	ip, _ := getLocalIP()
 	carro := Carro{
 		ID:             ip,
-		Bateria:        75,
+		Bateria:        60.0,
 		Clientemqtt:    mqttClient,
 		X:              152.0,
 		Y:              249.0,
-		CapacidadeBateria: 40.0,
-		Consumobateria: 0.15,
+		CapacidadeBateria: 60.0,
+		Consumobateria: 0.60,
 	}
 
 	routerCarro.Register(topics.ServerResponseToCar(carro.ID), func(payload []byte) {

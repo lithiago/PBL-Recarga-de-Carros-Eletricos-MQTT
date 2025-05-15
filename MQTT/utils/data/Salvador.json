@@ -9,19 +9,51 @@
             "Fila": []
         },
         {
-            "id": "BA02",
+            "id": "SSA02",
             "name": "Posto 2 - Salvador",
-            "x": 149,
-            "y": 253,
+            "x": 160,
+            "y": 249,
             "custoKW": 0.95,
             "Fila": []
         },
         {
-            "id": "BA03",
+            "id": "SSA03",
             "name": "Posto 3 - Salvador",
             "x": 155,
             "y": 245,
             "custoKW": 0.96,
+            "Fila": []
+        },
+        {
+            "id": "SSA04",
+            "name": "Posto 4 - Salvador",
+            "x": 170,
+            "y": 230,
+            "custoKW": 0.97,
+            "Fila": []
+        },
+        {
+            "id": "SSA05",
+            "name": "Posto 5 - Salvador",
+            "x": 158,
+            "y": 255,
+            "custoKW": 0.98,
+            "Fila": []
+        },
+        {
+            "id": "SSA06",
+            "name": "Posto 6 - Salvador",
+            "x": 165,
+            "y": 240,
+            "custoKW": 0.99,
+            "Fila": []
+        },
+        {
+            "id": "SSA07",
+            "name": "Posto 7 - Salvador",
+            "x": 150,
+            "y": 260,
+            "custoKW": 1.00,
             "Fila": []
         }
     ]

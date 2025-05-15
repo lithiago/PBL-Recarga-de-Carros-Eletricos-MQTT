@@ -42,10 +42,6 @@ type Parada struct {
 	PostoRecarga Posto
 }
 
-type Coordenadas struct {
-	X float64
-	Y float64
-}
 
 type DadosRotas struct {
 	Cidades map[string]Coordenadas `json:"cidades"`

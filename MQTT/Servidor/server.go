@@ -587,12 +587,13 @@ func main() {
 			}
 
 			log.Println("Mapa completo: ", mapaCompleto)
-			paradas := rotaslib.GerarRotas(
-				conteudoMsg.CarroMQTT,
-				rota,
-				dadosRotas.Cidades,
-				mapaCompleto,
-			)
+			// paradas := rotaslib.GerarRotas(
+			// 	conteudoMsg.CarroMQTT,
+			// 	rota,
+			// 	dadosRotas.Cidades,
+			// 	mapaCompleto,
+			// )
+			paradas := rotaslib.GerarRotas(conteudoMsg.CarroMQTT, rota, dadosRotas.Cidades, mapaCompleto)
 			log.Println("Paradas: ", paradas)
 
 		}

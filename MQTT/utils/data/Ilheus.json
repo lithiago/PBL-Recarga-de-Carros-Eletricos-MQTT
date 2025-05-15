@@ -1,5 +1,5 @@
 {
-  "Ilheus":[
+  "Ilheus": [
     {
       "id": "IL01",
       "nome": "Posto 1 - Ilheus",
@@ -10,7 +10,7 @@
     },
     {
       "id": "IL02",
-      "name": "Posto 2 - Ilheus",
+      "nome": "Posto 2 - Ilheus",
       "x": 300,
       "y": 95,
       "custoKW": 1.23,
@@ -18,10 +18,34 @@
     },
     {
       "id": "IL03",
-      "name": "Posto 3 - Ilheus",
+      "nome": "Posto 3 - Ilheus",
       "x": 303,
-      "y": 103,
+      "y": 130,
       "custoKW": 0.53,
+      "Fila": []
+    },
+    {
+      "id": "IL04",
+      "nome": "Posto 4 - Ilheus",
+      "x": 280,
+      "y": 100,
+      "custoKW": 0.60,
+      "Fila": []
+    },
+    {
+      "id": "IL05",
+      "nome": "Posto 5 - Ilheus",
+      "x": 290,
+      "y": 110,
+      "custoKW": 0.70,
+      "Fila": []
+    },
+    {
+      "id": "IL06",
+      "nome": "Posto 6 - Ilheus",
+      "x": 295,
+      "y": 120,
+      "custoKW": 0.80,
       "Fila": []
     }
   ]
