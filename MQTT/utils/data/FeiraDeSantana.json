@@ -1,0 +1,28 @@
+{
+    "FeiraDeSantana":[
+        {
+        "id": "FSA01",
+        "nome": "Posto 1 - FeiraDeSantana",
+        "x": 97,
+        "y": 204,
+        "custoKW": 0.94,
+        "Fila": []
+        },
+        {
+        "id": "FSA02",
+        "nome": "Posto 2 - FeiraDeSantana",
+        "x": 97,
+        "y": 200,
+        "custoKW": 0.94,
+        "Fila": []
+        },
+        {
+        "id": "FSA03",
+        "nome": "Posto 3 - FeiraDeSantana",
+        "x": 99,
+        "y": 196,
+        "custoKW": 0.92,
+        "Fila": []
+        }
+    ]
+}

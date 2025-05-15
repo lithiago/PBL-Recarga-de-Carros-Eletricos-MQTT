@@ -1,0 +1,31 @@
+{
+  "Ilheus": [
+    {
+      "id": "IL01",
+      "nome": "Posto 1 - Ilheus",
+      "cidade": "",
+      "x": 299,
+      "y": 105,
+      "custokw": 0.75,
+      "fila": []
+    },
+    {
+      "id": "IL02",
+      "nome": "",
+      "cidade": "",
+      "x": 300,
+      "y": 95,
+      "custokw": 1.23,
+      "fila": []
+    },
+    {
+      "id": "IL03",
+      "nome": "",
+      "cidade": "",
+      "x": 303,
+      "y": 103,
+      "custokw": 0.53,
+      "fila": []
+    }
+  ]
+}

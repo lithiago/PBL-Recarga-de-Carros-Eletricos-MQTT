@@ -1,0 +1,28 @@
+{
+    "Salvador": [
+        {
+            "id": "SSA01",
+            "name": "Posto 1 - Salvador",
+            "x": 152,
+            "y": 249,
+            "custoKW": 0.91,
+            "Fila": []
+        },
+        {
+            "id": "BA02",
+            "name": "Posto 2 - Salvador",
+            "x": 149,
+            "y": 253,
+            "custoKW": 0.95,
+            "Fila": []
+        },
+        {
+            "id": "BA03",
+            "name": "Posto 3 - Salvador",
+            "x": 155,
+            "y": 245,
+            "custoKW": 0.96,
+            "Fila": []
+        }
+    ]
+}
