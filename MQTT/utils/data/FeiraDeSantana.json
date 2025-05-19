@@ -1,28 +1,31 @@
 {
-    "FeiraDeSantana":[
-        {
-        "id": "FSA01",
-        "nome": "Posto 1 - FeiraDeSantana",
-        "x": 97,
-        "y": 204,
-        "custoKW": 0.94,
-        "Fila": []
-        },
-        {
-        "id": "FSA02",
-        "nome": "Posto 2 - FeiraDeSantana",
-        "x": 97,
-        "y": 200,
-        "custoKW": 0.94,
-        "Fila": []
-        },
-        {
-        "id": "FSA03",
-        "nome": "Posto 3 - FeiraDeSantana",
-        "x": 99,
-        "y": 196,
-        "custoKW": 0.92,
-        "Fila": []
-        }
-    ]
+  "FeiraDeSantana": [
+    {
+      "id": "FSA01",
+      "nome": "Posto 1 - FeiraDeSantana",
+      "cidade": "",
+      "x": 97,
+      "y": 204,
+      "custokw": 0.94,
+      "fila": []
+    },
+    {
+      "id": "FSA02",
+      "nome": "Posto 2 - FeiraDeSantana",
+      "cidade": "",
+      "x": 97,
+      "y": 200,
+      "custokw": 0.94,
+      "fila": []
+    },
+    {
+      "id": "FSA03",
+      "nome": "Posto 3 - FeiraDeSantana",
+      "cidade": "",
+      "x": 99,
+      "y": 196,
+      "custokw": 0.92,
+      "fila": []
+    }
+  ]
 }

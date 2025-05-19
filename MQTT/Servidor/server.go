@@ -2,7 +2,6 @@ package main
 
 import (
 	consts "MQTT/utils/Constantes"
-	rotaslib "MQTT/utils/Rotas"
 	topics "MQTT/utils/Topicos"
 	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
 	router "MQTT/utils/mqttLib/Router"
@@ -13,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +24,12 @@ type Servidor struct {
 	Cidade string
 	Client clientemqtt.MQTTClient
 	Pontos map[string][]*consts.Posto
+	mu     sync.Mutex
+}
+
+type Participante2PC struct {
+	PostoID string
+	URL     string
 }
 
 var (
@@ -35,9 +41,9 @@ var cidadeConfig = map[string]struct {
 	Container string
 	Porta     string
 }{
-	"feiradesantana": {"172.16.103.10", "8080"},
-	"salvador":       {"172.16.103.9", "8082"},
-	"ilheus":         {"172.16.103.11", "8081"},
+	"feiradesantana": {"servidor-feiradesantana", "8080"}, // 172.16.103.10
+	"salvador":       {"servidor-salvador", "8082"},       // 172.16.103.9
+	"ilheus":         {"servidor-ilheus", "8081"},         // 172.16.103.11
 }
 
 // A variavel solicitação é para concatenar a string ao topico evitando multiplas condições
@@ -98,74 +104,6 @@ func (s *Servidor) carregarPontos() []consts.Posto {
 
 	log.Printf("Servidor carregado com %d postos de %s\n", len(resultado), cidade)
 	return postos
-}
-
-func (s *Servidor) adicionarAoArquivo(path string, novoDado interface{}) error {
-	// Ler conteúdo atual do JSON
-	conteudo, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	// Decodificar para um mapa com as regiões como chave e os postos como valor
-	var mapa map[string][]consts.Posto
-	if len(conteudo) > 0 {
-		if err := json.Unmarshal(conteudo, &mapa); err != nil {
-			return err
-		}
-	}
-
-	// Recuperar a região (estado) a partir da variável de ambiente
-	estado := os.Getenv("ESTADO")
-	postos, ok := mapa[estado]
-	if !ok {
-		return fmt.Errorf("Nenhum dado encontrado para o estado: %s", estado)
-	}
-
-	// Encontrar o posto correspondente ao ID do novoDado
-	novoPosto := novoDado.(map[string]interface{})
-	idNovoPosto := novoPosto["id"].(string)
-
-	// Atualizar o posto ou adicionar um novo
-	postoAtualizado := false
-	for i, posto := range postos {
-		if posto.Id == idNovoPosto {
-			// Atualizar as informações do posto
-			postos[i].Nome = novoPosto["name"].(string)
-			postos[i].X = novoPosto["x"].(float64)
-			postos[i].Y = novoPosto["y"].(float64)
-			postos[i].CustoKW = novoPosto["custoKW"].(float64)
-			postoAtualizado = true
-			break
-		}
-	}
-
-	// Se o posto não foi encontrado, adiciona um novo
-	if !postoAtualizado {
-		novoPostoStruturado := consts.Posto{
-			Id:      idNovoPosto,
-			Nome:    novoPosto["name"].(string),
-			X:       novoPosto["x"].(float64),
-			Y:       novoPosto["y"].(float64),
-			CustoKW: novoPosto["custoKW"].(float64),
-		}
-		postos = append(postos, novoPostoStruturado)
-	}
-
-	// Atualizar o mapa com os dados atualizados
-	mapa[estado] = postos
-
-	// Reescrever o arquivo com os dados atualizados
-	arquivo, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer arquivo.Close()
-
-	// Escrever no arquivo com indentação
-	encoder := json.NewEncoder(arquivo)
-	encoder.SetIndent("", "   ")
-	return encoder.Encode(mapa)
 }
 
 func inicializarServidor() Servidor {
@@ -296,6 +234,8 @@ func getRotasValidas(rotasPossiveis map[string][]string, trajeto consts.Trajeto)
 }
 
 func (s *Servidor) getPostosFromJSON() ([]*consts.Posto, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	filePath := arquivoPontos
 	if filePath == "" {
 		return nil, fmt.Errorf("ARQUIVO_JSON não definido")
@@ -328,6 +268,7 @@ func (s *Servidor) getPostosFromJSON() ([]*consts.Posto, error) {
 
 func (s *Servidor) atualizarArquivo(filePath string, postos []*consts.Posto) error {
 	// Converte os postos para o formato de mapa esperado no JSON
+	s.mu.Lock()
 	cidade := os.Getenv("CIDADE")
 	if cidade == "" {
 		return fmt.Errorf("CIDADE não definida")
@@ -485,6 +426,47 @@ func serverAPICommunication(server *Servidor) {
 		c.JSON(http.StatusOK, postoAtualizado)
 	})
 
+	r.POST("/2pc/prepare", func(c *gin.Context) {
+		var req struct {
+			PostoID string       `json:"posto_id"`
+			Carro   consts.Carro `json:"carro"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
+			return
+		}
+		// Aqui: tente reservar temporariamente a vaga (ex: adicionar na fila como "pendente")
+		// Se conseguir reservar:
+		c.JSON(http.StatusOK, gin.H{"result": "ok"})
+		// Se não conseguir:
+		// c.JSON(http.StatusOK, gin.H{"result": "abort"})
+	})
+	r.POST("/2pc/commit", func(c *gin.Context) {
+		var req struct {
+			PostoID string       `json:"posto_id"`
+			Carro   consts.Carro `json:"carro"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
+			return
+		}
+		// Aqui: efetive a reserva (ex: adicione o carro definitivamente à fila)
+		c.JSON(http.StatusOK, gin.H{"result": "committed"})
+	})
+
+	r.POST("/2pc/abort", func(c *gin.Context) {
+		var req struct {
+			PostoID string       `json:"posto_id"`
+			Carro   consts.Carro `json:"carro"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
+			return
+		}
+		// Aqui: desfaça a reserva temporária (ex: remova o carro da fila se estava pendente)
+		c.JSON(http.StatusOK, gin.H{"result": "aborted"})
+	})
+
 	// Inicia o servidor HTTP na porta 8080
 	porta := os.Getenv("PORTA")
 	if porta == "" {
@@ -513,6 +495,51 @@ func (s *Servidor) getPostosDisponiveis() ([]*consts.Posto, error) {
 	return postosDisponiveis, nil
 }
 
+// TODO: Testar isso
+func (s *Servidor) TwoPhaseCommit(participantes []Participante2PC, carro consts.Carro) error {
+	payloadTemplate := `{"posto_id":"%s","carro":%s}`
+
+	// Fase 1: Prepare
+	okCount := 0
+	for _, p := range participantes {
+		carroJSON, _ := json.Marshal(carro)
+		payload := fmt.Sprintf(payloadTemplate, p.PostoID, string(carroJSON))
+		resp, err := http.Post(p.URL+"/2pc/prepare", "application/json", strings.NewReader(payload))
+		if err != nil {
+			log.Printf("[2PC] Erro ao enviar prepare para %s: %v", p.URL, err)
+			break
+		}
+		defer resp.Body.Close()
+		var res map[string]string
+		json.NewDecoder(resp.Body).Decode(&res)
+		if res["result"] == "ok" {
+			okCount++
+		} else {
+			break
+		}
+	}
+
+	// Se todos aceitaram, commit
+	if okCount == len(participantes) {
+		for _, p := range participantes {
+			carroJSON, _ := json.Marshal(carro)
+			payload := fmt.Sprintf(payloadTemplate, p.PostoID, string(carroJSON))
+			http.Post(p.URL+"/2pc/commit", "application/json", strings.NewReader(payload))
+		}
+		log.Println("[2PC] Commit enviado para todos os participantes")
+		return nil
+	}
+
+	// Se algum abortou, abort para todos
+	for _, p := range participantes {
+		carroJSON, _ := json.Marshal(carro)
+		payload := fmt.Sprintf(payloadTemplate, p.PostoID, string(carroJSON))
+		http.Post(p.URL+"/2pc/abort", "application/json", strings.NewReader(payload))
+	}
+	log.Println("[2PC] Abort enviado para todos os participantes")
+	return fmt.Errorf("2PC abortado por algum participante")
+}
+
 func (s *Servidor) ObterPostosDeOutroServidor(url string) ([]*consts.Posto, error) {
 	log.Printf("[SERVIDOR] Enviando requisição para %s/postos", url)
 
@@ -539,93 +566,124 @@ func (s *Servidor) ObterPostosDeOutroServidor(url string) ([]*consts.Posto, erro
 	for i := range postos {
 		postosPointers = append(postosPointers, &postos[i])
 	}
-	log.Printf("[SERVIDOR] Postos recebidos de %s: %+v", url, postos)
+
+	// Formata o slice de postos como JSON indentado para melhor visualização no log
+	postosJSON, err := json.MarshalIndent(postos, "", "  ")
+	if err != nil {
+		log.Printf("[SERVIDOR] Erro ao formatar postos recebidos de %s: %v", url, err)
+	} else {
+		log.Printf("[SERVIDOR] Postos recebidos de %s:\n%s", url, string(postosJSON))
+	}
+
 	return postosPointers, nil
 
+}
+
+// Adiciona um carro à fila do posto remoto (FUNCIONA)
+func (s *Servidor) AdicionarCarroNoPosto(url, postoID string, carro consts.Carro) error {
+	endpoint := fmt.Sprintf("%s/postos/%s/adicionar", url, postoID)
+	payload, err := json.Marshal(carro)
+	if err != nil {
+		return fmt.Errorf("erro ao serializar carro: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, endpoint, strings.NewReader(string(payload)))
+	if err != nil {
+		return fmt.Errorf("erro ao criar requisição PATCH: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("erro ao enviar requisição PATCH: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("requisição PATCH falhou com status %d", resp.StatusCode)
+	}
+
+	log.Printf("[SERVIDOR] Carro %s adicionado ao posto %s em %s", carro.ID, postoID, url)
+	return nil
+}
+
+// Remove um carro da fila do posto remoto (FUNCIONA)
+func (s *Servidor) RemoverCarroDoPosto(url, postoID string, carro consts.Carro) error {
+	endpoint := fmt.Sprintf("%s/postos/%s/remover", url, postoID)
+	payload, err := json.Marshal(carro)
+	if err != nil {
+		return fmt.Errorf("erro ao serializar carro: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, endpoint, strings.NewReader(string(payload)))
+	if err != nil {
+		return fmt.Errorf("erro ao criar requisição PATCH: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("erro ao enviar requisição PATCH: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("requisição PATCH falhou com status %d", resp.StatusCode)
+	}
+
+	log.Printf("[SERVIDOR] Carro %s removido do posto %s em %s", carro.ID, postoID, url)
+	return nil
 }
 
 func main() {
 	log.Println("[SERVIDOR] Inicializando...")
 
 	server := inicializarServidor()
-	server.AssinarEventosDoCarro()
+	// server.AssinarEventosDoCarro()
 
 	go serverAPICommunication(&server)
 	time.Sleep(10 * time.Second)
-	log.Println("[SERVIDOR] Iniciando comunicação MQTT...")
+	// log.Println("[SERVIDOR] Iniciando comunicação MQTT...")
 
-	topic := topics.CarroRequestRotas("+", strings.ToLower(server.Cidade))
-	server.Client.Subscribe(topic)
-	log.Printf("[SERVIDOR] Assinando tópico: %s", topic)
+	// topic := topics.CarroRequestRotas("+", strings.ToLower(server.Cidade))
+	// server.Client.Subscribe(topic)
+	// log.Printf("[SERVIDOR] Assinando tópico: %s", topic)
 
-	routerServidor := server.Client.Router
-	routerServidor.Register(topic, func(payload []byte) {
-		log.Println("Mensagem Recebida!")
-		var conteudoMsg consts.Trajeto
-		if err := json.Unmarshal(payload, &conteudoMsg); err != nil {
-			log.Println("Erro ao decodificar mensagem:", err)
-		}
-		dadosRotas := lerRotas()
-		rotasValidas := getRotasValidas(dadosRotas.Rotas, conteudoMsg)
-		log.Println("Rotas válidas: ", rotasValidas)
-		var mapaCompleto = make(map[string][]consts.Posto) // Inicializa o mapa
-		var paradas []consts.Parada
-		for _, rota := range rotasValidas {
-			for _, cidade := range rota {
-				if cidade == server.Cidade {
-					mapaCompleto[cidade] = server.carregarPontos() // método local
-				} else {
-					config, exists := cidadeConfig[strings.ToLower(cidade)]
-					if !exists {
-						log.Printf("Configuração não encontrada para a cidade: %s", cidade)
-						continue
-					}
+	participantes := []Participante2PC{
+		{URL: "http://servidor-feiradesantana:8080", PostoID: "FSA01"},
+		{URL: "http://servidor-ilheus:8081", PostoID: "ILH01"},
+		{URL: "http://servidor-salvador:8082", PostoID: "SSA01"},
+	}
 
-					url := fmt.Sprintf("http://%s:%s", config.Container, config.Porta)
-					log.Printf("Enviando requisição para: %s", url)
-					postos, err := server.ObterPostosDeOutroServidor(url)
-					if err != nil {
-						log.Printf("Erro ao obter postos de outro servidor (%s): %v", cidade, err)
-						continue
-					}
+	carro := consts.Carro{
+		ID:                "CARRO_TESTE_2PC",
+		Bateria:           80.0,
+		X:                 100.0,
+		Y:                 200.0,
+		Capacidadebateria: 100.0,
+		Consumobateria:    10.0,
+	}
 
-					// Adiciona os postos ao mapa no formato esperado
-					var postosSemPonteiro []consts.Posto
-					for _, posto := range postos {
-						postosSemPonteiro = append(postosSemPonteiro, *posto)
-					}
-					mapaCompleto[cidade] = postosSemPonteiro
-				}
-			}
+	// O commit chega, mas aparentemente só checa se aquele carro está na fila
+	// Preciso mudar para verificar se há qualquer carro na fila, não só o carro que está sendo enviado
 
-			log.Println("Mapa completo: ", mapaCompleto)
-			paradas := rotaslib.GerarRotas(
-				conteudoMsg.CarroMQTT,
-				rota,
-				dadosRotas.Cidades,
-				mapaCompleto,
-			)
-			log.Println("Paradas: ", paradas)
-		}
-		ConteudoJSON, _ := json.Marshal(paradas)
-		topic := topics.ServerResponteRoutes(conteudoMsg.CarroMQTT.ID, server.Cidade)
-		log.Printf("[SERVIDOR] Respondendo para: %s", topic)
-		server.Client.Publish(topic, ConteudoJSON)
-	})
+	//Teste:
+	// Adiciar um carro na fila com a função
+	// depois tentar fazer o 2pc
+	// deverá falhar
+	// depois remover o carro da fila com a função
+	// e tentar fazer o 2pc novamente
 
-	// TESTE PARA REQUISIÇÃO DIRETA
-	// for cidade, config := range cidadeConfig {
-	// 	if strings.ToLower(cidade) != strings.ToLower(server.Cidade) {
-	// 		url := fmt.Sprintf("http://%s:%s", config.Container, config.Porta)
-	// 		log.Printf("Enviando requisição para: %s", url)
-	// 		postos, err := server.ObterPostosDeOutroServidor(url)
-	// 		if err != nil {
-	// 			log.Printf("Erro ao obter postos de outro servidor (%s): %v", cidade, err)
-	// 			continue
-	// 		}
-	// 		log.Printf("Postos recebidos de %s: %+v", cidade, postos)
-	// 	}
-	// }
-
+	log.Println("[TESTE] Iniciando teste do TwoPhaseCommit...")
+	err := server.TwoPhaseCommit(participantes, carro)
+	if err != nil {
+		log.Printf("[TESTE] Falha no 2PC: %v", err)
+	} else {
+		log.Println("[TESTE] 2PC executado com sucesso!")
+	}
 	select {} // mantém o servidor ativo
 }
+
+//TODO: mandar os postos disponiveis para o carro
+//TODO: 2pc
+//TODO: tratar concorrência

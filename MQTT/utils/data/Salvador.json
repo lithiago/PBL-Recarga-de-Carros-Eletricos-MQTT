@@ -2,15 +2,24 @@
     "Salvador": [
         {
             "id": "SSA01",
-            "name": "Posto 1 - Salvador",
+            "nome": "Posto 1 - Salvador",
             "x": 152,
             "y": 249,
             "custoKW": 0.91,
-            "Fila": []
+            "Fila": [
+                {
+                    "id": "1",
+                    "nome": "Carro 1",
+                    "x" : 100,
+                    "y" : 200,
+                    "capacidadebateria" : 100,
+                    "consumobateria": 0.5
+                }
+            ]
         },
         {
             "id": "BA02",
-            "name": "Posto 2 - Salvador",
+            "nome": "Posto 2 - Salvador",
             "x": 149,
             "y": 253,
             "custoKW": 0.95,
@@ -18,7 +27,7 @@
         },
         {
             "id": "BA03",
-            "name": "Posto 3 - Salvador",
+            "nome": "Posto 3 - Salvador",
             "x": 155,
             "y": 245,
             "custoKW": 0.96,

@@ -57,4 +57,9 @@ type Trajeto struct {
 	Destino   string `json:"destino"`
 }
 
+type Participante2PC struct {
+	URL     string
+	PostoID string
+}
+
 const Broker = "tcp://mosquitto:1845"
