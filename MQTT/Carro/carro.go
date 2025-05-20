@@ -36,6 +36,7 @@ type Carro struct {
 	Y                 float64                `json:"y"`
 	CapacidadeBateria float64                `json:"capacidadebateria"`
 	Consumobateria    float64                `json:"consumobateria"`
+	CidadeAtual string `json:"cidadeatual"`
 	// Adicionado para a função solicitarRota
 }
 
@@ -224,18 +225,19 @@ func (c *Carro) handleUserCommand(command string) {
 	switch command {
 	case "1": // Solicitar Rota para Destino
 		cidades := consts.CidadesArray
-		cidadeInicial := consts.CidadeAtualDoCarro(c.X, c.Y)
-		var indice int = -1
-		for i, _ := range cidades{
-			if cidades[i] == strings.ToLower(cidadeInicial){
+		var indice int 
+		for i, x := range cidades{
+			log.Println("Cidade Atual: ", c.CidadeAtual)
+			log.Println("Cidade do Array", x)
+			if cidades[i] == c.CidadeAtual{
 				indice = i
 				break
 			}
 		}
-		if indice != -1 {
-			// Remove a cidade atual da lista de opções
-			cidades = append(cidades[:indice], cidades[indice+1:]...)
-		}
+		
+		// Remove a cidade atual da lista de opções
+		cidades = append(cidades[:indice], cidades[indice+1:]...)
+	
 		
 		fmt.Println("Cidades disponíveis para rota:")
 		for i, cidade := range cidades {
@@ -249,7 +251,7 @@ func (c *Carro) handleUserCommand(command string) {
 			return
 		}
 		cidadeDestino := cidades[escolha]
-		c.solicitarRota(cidadeInicial, cidadeDestino)
+		c.solicitarRota(c.CidadeAtual, cidadeDestino)
 	case "2": // Simular Viagem (Exemplo de nova opção)
 		fmt.Println("Pensar em algo para colocar aqui")
 		// Aqui você poderia iniciar uma goroutine para simular o movimento do carro, consumo de bateria, etc.
@@ -278,6 +280,7 @@ func main() {
 	// Definindo a cidade de origem do carro para o exemplo
 	randomX := rand.Float64()*(355.0-60.0) + 60.0
 	randomY := rand.Float64()*(270.0-50.0) + 50.0
+	cidadeInicial := consts.CidadeAtualDoCarro(randomX, randomY)
 	carro := Carro{
 		ID:                ip,
 		Bateria:           60.0,
@@ -286,6 +289,7 @@ func main() {
 		Y:                 randomY,
 		CapacidadeBateria: 60.0,
 		Consumobateria:    0.20,
+		CidadeAtual: cidadeInicial,
 	}
 
 	// Assinar tópicos necessários no broker MQTT

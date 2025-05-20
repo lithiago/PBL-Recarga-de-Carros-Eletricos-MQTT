@@ -217,8 +217,9 @@ func desserializarMensagem(payload []byte) consts.Mensagem {
 }
 
 func getRotasValidas(rotasPossiveis map[string][]string, trajeto consts.Trajeto) map[string][]string {
-	inicio := trajeto.Inicio
-	destino := trajeto.Destino
+	// Limpeza de espaços extras
+	inicio := strings.ReplaceAll(trajeto.Inicio, " ", "")
+	destino := strings.ReplaceAll(trajeto.Destino, " ", "")
 	mapaCompleto := make(map[string][]string)
 	// Itera sobre as rotas possíveis
 	log.Printf("Início: %s, Destino: %s", inicio, destino)
@@ -229,6 +230,8 @@ func getRotasValidas(rotasPossiveis map[string][]string, trajeto consts.Trajeto)
 		for j, cidade := range rota {
 
 			// Verifica se o destino foi encontrado (case insensitive)
+			log.Println("Cidade Rota:" , cidade)
+			log.Println("Cidade Destino:", destino)
 			if strings.EqualFold(cidade, destino) {
 				indiceDestino = j
 				log.Println("Encontrou o Destino da Rota")
