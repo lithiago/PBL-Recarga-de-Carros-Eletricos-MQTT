@@ -5,6 +5,7 @@ import (
 	topics "MQTT/utils/Topicos"
 	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
 	router "MQTT/utils/mqttLib/Router"
+	"math/rand"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -36,7 +37,6 @@ type Carro struct {
 	CapacidadeBateria float64                `json:"capacidadebateria"`
 	Consumobateria    float64                `json:"consumobateria"`
 	// Adicionado para a função solicitarRota
-	CidadeOrigem string `json:"-"`
 }
 
 // Métodos do Carro (permanecem semelhantes, pois publicam diretamente)
@@ -109,12 +109,12 @@ func (c *Carro) PorcentagemBateria() float64 {
 	return (c.Bateria / c.CapacidadeBateria) * 100
 }
 
-func desserializarMensagem(mensagem []byte) consts.MsgServer {
-	var msg consts.MsgServer
+func desserializarMensagem(mensagem []byte) consts.Mensagem {
+	var msg consts.Mensagem
 	if err := json.Unmarshal(mensagem, &msg); err != nil {
 		fmt.Printf("[ERRO] Erro ao decodificar mensagem: %v\n", err)
 		// Retorna uma MsgServer vazia ou com erro sinalizado
-		return consts.MsgServer{} 
+		return consts.Mensagem{} 
 	}
 	return msg
 }
@@ -168,25 +168,21 @@ func processIncomingMqttMessages(car *Carro) {
 			fmt.Printf(">> [Resposta Servidor] %s\n", string(msg.Payload))
 			// Lógica específica para respostas diretas (ex: confirmações)
 		} else if strings.HasPrefix(msg.Topic, topics.ServerResponteRoutes(car.ID, "")) { // Prefixo para rotas
-			var msgServer consts.MsgServer
-			var paradas map[string][]consts.Parada
+			var msgServer consts.Mensagem
+			//var paradas map[string][]consts.Parada
 			
 			// Desserializa a mensagem para o tipo genérico
 			msgServer = desserializarMensagem(msg.Payload) 
 
-			// Agora tenta desserializar o 'Conteudo' específico
-			if err := json.Unmarshal(msgServer.Conteudo, &paradas); err != nil {
-				log.Printf("[Processador MQTT] Erro ao decodificar conteúdo de rotas: %v\n", err)
-				continue
-			}
+			
 
-			fmt.Println(">> [Rotas Recebidas]:", msgServer.Cidade)
-			for cidade, paradasList := range paradas {
-				fmt.Printf("  Cidade: %s\n", cidade)
-				for _, parada := range paradasList {
-					fmt.Printf("    Posto: %s, ID: %s, X: %.2f, Y: %.2f\n", parada.NomePosto, parada.IDPosto, parada.X, parada.Y)
-				}
-			}
+			fmt.Println(">> [Rotas Recebidas]:", msgServer.Msg)
+			// for cidade, paradasList := range paradas {
+			// 	fmt.Printf("  Cidade: %s\n", cidade)
+			// 	for _, parada := range paradasList {
+			// 		fmt.Printf("    Posto: %s, ID: %s, X: %.2f, Y: %.2f\n", parada.NomePosto, parada.IDPosto, parada.X, parada.Y)
+			// 	}
+			// }
 			// Adicione lógica para exibir visualmente ou armazenar rotas
 		} else {
 			log.Printf("[Processador MQTT] Tópico desconhecido ou não tratado especificamente: %s\n", msg.Topic)
@@ -227,14 +223,33 @@ func (c *Carro) AssinarRespostaServidor() {
 func (c *Carro) handleUserCommand(command string) {
 	switch command {
 	case "1": // Solicitar Rota para Destino
-		fmt.Print("Digite a cidade de destino (ex: Salvador, Ilheus): ")
-		var cidadeDestino string
-		fmt.Scanln(&cidadeDestino)
-		if strings.TrimSpace(cidadeDestino) == "" {
-			fmt.Println("Cidade de destino não pode ser vazia.")
+		cidades := consts.CidadesArray
+		cidadeInicial := consts.CidadeAtualDoCarro(c.X, c.Y)
+		var indice int = -1
+		for i, _ := range cidades{
+			if cidades[i] == strings.ToLower(cidadeInicial){
+				indice = i
+				break
+			}
+		}
+		if indice != -1 {
+			// Remove a cidade atual da lista de opções
+			cidades = append(cidades[:indice], cidades[indice+1:]...)
+		}
+		
+		fmt.Println("Cidades disponíveis para rota:")
+		for i, cidade := range cidades {
+			fmt.Printf("  %d - %s\n", i, cidade)
+		}
+		fmt.Print("Digite a opção para cidade de destino: ")
+		var escolha int
+		_, err := fmt.Scanln(&escolha)
+		if err != nil || escolha < 0 || escolha >= len(cidades) {
+			fmt.Println("Opção inválida.")
 			return
 		}
-		c.solicitarRota(c.CidadeOrigem, cidadeDestino)
+		cidadeDestino := cidades[escolha]
+		c.solicitarRota(cidadeInicial, cidadeDestino)
 	case "2": // Simular Viagem (Exemplo de nova opção)
 		fmt.Println("Pensar em algo para colocar aqui")
 		// Aqui você poderia iniciar uma goroutine para simular o movimento do carro, consumo de bateria, etc.
@@ -247,7 +262,6 @@ func (c *Carro) handleUserCommand(command string) {
 }
 
 func main() {
-	var cidadesPossiveis = []string{"FeiraDeSantana", "Salvador", "Ilheus"}
 	log.Println("[CARRO] Inicializando aplicação...")
 
 	routerCarro := router.NewRouter()
@@ -262,16 +276,16 @@ func main() {
 
 	ip, _ := getLocalIP()
 	// Definindo a cidade de origem do carro para o exemplo
-	cidadeOrigem := cidadesPossiveis[0] // Exemplo: FeiraDeSantana
+	randomX := rand.Float64()*(355.0-60.0) + 60.0
+	randomY := rand.Float64()*(270.0-50.0) + 50.0
 	carro := Carro{
 		ID:                ip,
 		Bateria:           60.0,
 		Clientemqtt:       mqttClient,
-		X:                 290.0,
-		Y:                 95.0,
+		X:                 randomX,
+		Y:                 randomY,
 		CapacidadeBateria: 60.0,
 		Consumobateria:    0.20,
-		CidadeOrigem:      cidadeOrigem, // Atribuir a cidade de origem aqui
 	}
 
 	// Assinar tópicos necessários no broker MQTT

@@ -4,6 +4,7 @@ import (
 	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
 	mqttlib "MQTT/utils/mqttLib/Router"
 	"encoding/json"
+	"log"
 	"math"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -35,7 +36,7 @@ type Carro struct {
 }
 
 type Mensagem struct {
-	Conteudo json.RawMessage `json:"conteudo"` 
+	Conteudo map[string]interface{} `json:"conteudo"`
 	Msg          string `json:"msg"`
 }
 
@@ -67,9 +68,38 @@ type Coordenadas struct {
 	Y float64
 }
 
+var cidades = map[string]struct {
+	x, y, raio float64
+}{
+	"Feira de Santana": {x: 97.67, y: 200.0, raio: 225.9},  // Raio aproximado calculado
+	"Salvador":         {x: 152.0, y: 249.0, raio: 210.1},
+	"Ilheus":           {x: 300.67, y: 101.0, raio: 225.9},
+}
+
+
+var CidadesArray = []string{"Feira de Santana", "Salvador", "Ilheus"}
+
+
 // Calcula a distância euclidiana entre dois pontos
 func CalcularDistancia(destino, origem Coordenadas) float64 {
 	return math.Sqrt(math.Pow(destino.X-origem.X, 2) + math.Pow(destino.Y-origem.Y, 2))
+}
+
+// Função para calcular a distância entre dois pontos
+func distancia(x1, y1, x2, y2 float64) float64 {
+	return math.Sqrt(math.Pow(x2-x1, 2) + math.Pow(y2-y1, 2))
+}
+
+// Função para determinar em qual cidade o carro está
+func CidadeAtualDoCarro(xCarro, yCarro float64) string {
+	for cidade, info := range cidades {
+		d := distancia(xCarro, yCarro, info.x, info.y)
+		if d <= info.raio {
+			log.Println("Carro está em:", cidade)
+			return cidade
+		}
+	}
+	return "Fora de cobertura"
 }
 
 const Broker = "tcp://mosquitto:1845"

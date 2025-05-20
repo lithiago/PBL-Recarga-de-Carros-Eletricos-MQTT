@@ -231,6 +231,8 @@ func getRotasValidas(rotasPossiveis map[string][]string, trajeto consts.Trajeto)
 			// Verifica se o destino foi encontrado (case insensitive)
 			if strings.EqualFold(cidade, destino) {
 				indiceDestino = j
+				log.Println("Encontrou o Destino da Rota")
+
 				encontrouDestino = true
 				break
 			}
@@ -240,13 +242,16 @@ func getRotasValidas(rotasPossiveis map[string][]string, trajeto consts.Trajeto)
 			var encontrouInicio bool
 			// Percorre até o índice do destino para verificar se o início está na rota
 			for _, cidade := range rota[:indiceDestino+1] {
+				log.Println("Cidade:", cidade)
+				log.Println("Início:", inicio)
 				if strings.EqualFold(cidade, inicio) {
 					encontrouInicio = true
 					break
 				}
 			}
 			// Se o início foi encontrado e está antes do destino, adiciona a rota
-			if encontrouInicio {
+			if encontrouInicio{
+				log.Println("Encontrou o Inicio da Rota")
 				mapaCompleto[i] = rota[:indiceDestino+1]
 			}
 		}
@@ -518,8 +523,8 @@ func main() {
 		rotasValidas := getRotasValidas(dadosRotas.Rotas, conteudoMsg)
 		log.Println("Rotas válidas: ", rotasValidas)
 		var mapaCompleto = make(map[string][]consts.Posto) // Inicializa o mapa
-		var paradas map[string][]consts.Parada
-		for _, rota := range rotasValidas {
+		paradas := make(map[string][]consts.Parada)
+		for nome, rota := range rotasValidas {
 			// AQUI O SERVIDOR DEVE SOLICITAR AOS OUTROS SERVIDORES VIA HTTP OS SEUS PONTOS PARA ASSIM PODER GERAR ROTAS. SÓ FUI OBSERVAR ISSO AGORA. MAS COMO EU VOU MONTAR O MAP PARA PASSAR PRA FUNÇÃO DE GERAR
 			// ROTAS?
 			for _, cidade := range rota {
@@ -555,20 +560,32 @@ func main() {
 			// 	dadosRotas.Cidades,
 			// 	mapaCompleto,
 			// )
-			paradas := rotaslib.GerarRotas(conteudoMsg.CarroMQTT, rota, dadosRotas.Cidades, mapaCompleto)
+			log.Println("Checando Paradas para a Rota: ", rota)
+			paradas[nome] = rotaslib.GerarRotas(conteudoMsg.CarroMQTT, rota, dadosRotas.Cidades, mapaCompleto)
 			log.Println("Paradas: ", paradas)
 
 		}
-		ConteudoJSON, err := json.Marshal(paradas)
-		if err != nil {
+		// ConteudoJSON, err := json.Marshal(paradas)
+		// if err != nil {
+		// 	log.Println("Erro ao codificar mensagem:", err)
+		// 	return
+		// }
+		// msg, err := json.Marshal(consts.MsgServer{ID: server.ID, Cidade: server.Cidade, Conteudo: ConteudoJSON})
+		// if err != nil {
+		// 	log.Println("Erro ao codificar mensagem:", err)
+		// 	return
+		// }
+		mapInterface := make(map[string]interface{})
+		for nome, slice := range paradas{
+			mapInterface[nome] = slice
+		}
+
+		msg, err := json.Marshal((consts.Mensagem{Msg: "Rotas", Conteudo: mapInterface}))
+		if err != nil{
 			log.Println("Erro ao codificar mensagem:", err)
 			return
 		}
-		msg, err := json.Marshal(consts.MsgServer{ID: server.ID, Cidade: server.Cidade, Conteudo: ConteudoJSON})
-		if err !=nil{
-			log.Println("Erro ao codificar mensagem:", err)
-			return
-		}
+
 		topic := topics.ServerResponteRoutes(conteudoMsg.CarroMQTT.ID, server.Cidade)
 		log.Printf("[SERVIDOR] Respondendo para: %s", topic)
 		server.Client.Publish(topic, msg)

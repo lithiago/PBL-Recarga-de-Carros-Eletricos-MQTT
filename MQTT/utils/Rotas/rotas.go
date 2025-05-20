@@ -156,7 +156,7 @@ func logParadas(paradas map[string][]consts.Parada) {
 	}
 } */
 
-func GerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coordenadas, todosOsPostos map[string][]consts.Posto) map[string][]consts.Parada {
+func GerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coordenadas, todosOsPostos map[string][]consts.Posto) []consts.Parada {
 	log.Println("Criando rotas...")
 	log.Printf("Bateria: %+v", carro.Bateria)
 	log.Printf("Rotas: %v", rota)
@@ -165,7 +165,7 @@ func GerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coo
 	log.Printf("Autonomia total: %.2f km", autonomiaTotal)
 
 	posicaoCarro := consts.Coordenadas{X: carro.X, Y: carro.Y}
-	paradasPorCidade := make(map[string][]consts.Parada)
+	paradasPorCidade := []consts.Parada{}
 
 	for _, cidade := range rota {
 		destino := cidades[cidade]
@@ -225,7 +225,7 @@ func GerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coo
 				X:         melhorPosto.X,
 				Y:         melhorPosto.Y,
 			}
-			paradasPorCidade[cidadeRecarga] = append(paradasPorCidade[cidadeRecarga], parada)
+			paradasPorCidade = append(paradasPorCidade, parada)
 
 			// Atualiza a posição do carro para o posto escolhido
 			posicaoCarro = consts.Coordenadas{X: melhorPosto.X, Y: melhorPosto.Y}
