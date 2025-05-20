@@ -435,11 +435,27 @@ func serverAPICommunication(server *Servidor) {
 			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
 			return
 		}
-		// Aqui: tente reservar temporariamente a vaga (ex: adicionar na fila como "pendente")
-		// Se conseguir reservar:
-		c.JSON(http.StatusOK, gin.H{"result": "ok"})
-		// Se não conseguir:
-		// c.JSON(http.StatusOK, gin.H{"result": "abort"})
+
+		postos, err := server.getPostosFromJSON()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao ler postos"})
+			return
+		}
+
+		for _, p := range postos {
+			if p.Id == req.PostoID {
+				if len(p.Fila) > 0 {
+					// Já existe algum carro na fila, não pode reservar
+					c.JSON(http.StatusOK, gin.H{"result": "abort"})
+					return
+				}
+				// Aqui você pode adicionar o carro como "pendente" se quiser
+				c.JSON(http.StatusOK, gin.H{"result": "ok"})
+				return
+			}
+		}
+
+		c.JSON(http.StatusNotFound, gin.H{"result": "abort", "error": "Posto não encontrado"})
 	})
 	r.POST("/2pc/commit", func(c *gin.Context) {
 		var req struct {
@@ -450,7 +466,33 @@ func serverAPICommunication(server *Servidor) {
 			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
 			return
 		}
-		// Aqui: efetive a reserva (ex: adicione o carro definitivamente à fila)
+
+		postos, err := server.getPostosFromJSON()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao ler postos"})
+			return
+		}
+
+		var postoAtualizado *consts.Posto
+		for _, p := range postos {
+			if p.Id == req.PostoID {
+				// Adiciona o carro à fila (commit efetivo)
+				p.Fila = append(p.Fila, req.Carro)
+				postoAtualizado = p
+				break
+			}
+		}
+
+		if postoAtualizado == nil {
+			c.JSON(http.StatusNotFound, gin.H{"result": "abort", "error": "Posto não encontrado"})
+			return
+		}
+
+		if err := server.atualizarArquivo(arquivoPontos, postos); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao atualizar o arquivo JSON"})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{"result": "committed"})
 	})
 
@@ -651,7 +693,7 @@ func main() {
 
 	participantes := []Participante2PC{
 		{URL: "http://servidor-feiradesantana:8080", PostoID: "FSA01"},
-		{URL: "http://servidor-ilheus:8081", PostoID: "ILH01"},
+		{URL: "http://servidor-ilheus:8081", PostoID: "IL01"},
 		{URL: "http://servidor-salvador:8082", PostoID: "SSA01"},
 	}
 
@@ -663,9 +705,6 @@ func main() {
 		Capacidadebateria: 100.0,
 		Consumobateria:    10.0,
 	}
-
-	// O commit chega, mas aparentemente só checa se aquele carro está na fila
-	// Preciso mudar para verificar se há qualquer carro na fila, não só o carro que está sendo enviado
 
 	//Teste:
 	// Adiciar um carro na fila com a função
@@ -681,6 +720,7 @@ func main() {
 	} else {
 		log.Println("[TESTE] 2PC executado com sucesso!")
 	}
+
 	select {} // mantém o servidor ativo
 }
 

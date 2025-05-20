@@ -7,7 +7,16 @@
       "x": 299,
       "y": 105,
       "custokw": 0.75,
-      "fila": []
+      "fila": [
+        {
+          "id": "CARRO_TESTE_2PC",
+          "bateria": 80,
+          "x": 100,
+          "y": 200,
+          "capacidadebateria": 100,
+          "consumobateria": 10
+        }
+      ]
     },
     {
       "id": "IL02",
