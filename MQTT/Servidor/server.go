@@ -143,11 +143,11 @@ func (s *Servidor) adicionarAoArquivo(path string, novoDado interface{}) error {
 	// Se o posto não foi encontrado, adiciona um novo
 	if !postoAtualizado {
 		novoPostoStruturado := consts.Posto{
-			Id:         idNovoPosto,
-			Nome:       novoPosto["name"].(string),
-			X:          novoPosto["x"].(float64),
-			Y:          novoPosto["y"].(float64),
-			CustoKW:    novoPosto["custoKW"].(float64),
+			Id:      idNovoPosto,
+			Nome:    novoPosto["name"].(string),
+			X:       novoPosto["x"].(float64),
+			Y:       novoPosto["y"].(float64),
+			CustoKW: novoPosto["custoKW"].(float64),
 		}
 		postos = append(postos, novoPostoStruturado)
 	}
@@ -215,44 +215,6 @@ func desserializarMensagem(payload []byte) consts.Mensagem {
 	}
 	return msg
 }
-
-// func calcularRotas(rotasPossiveis map[string][]string, trajeto consts.Trajeto) map[int][]string {
-//     inicio := trajeto.Inicio
-//     destino := trajeto.Destino
-//     rotasValidas := make(map[int][]string)
-
-//     if inicio == "" || destino == "" {
-//         log.Println("Erro: Início ou destino inválido.")
-//         return rotasValidas
-//     }
-
-//     log.Printf("Início: %s, Destino: %s", inicio, destino)
-//     indiceRotaValida := 0
-
-//     for _, rota := range rotasPossiveis {
-//         indiceInicio := -1
-//         indiceDestino := -1
-
-//         for i, cidade := range rota {
-//             if cidade == inicio && indiceInicio == -1 {
-//                 indiceInicio = i
-//             }
-//             if cidade == destino {
-//                 indiceDestino = i
-//             }
-//         }
-
-//         // Verifica se a sub-rota é válida
-//         if indiceInicio != -1 && indiceDestino != -1 && indiceInicio <= indiceDestino {
-//             subRota := rota[indiceInicio : indiceDestino+1]
-//             rotasValidas[indiceRotaValida] = subRota
-//             indiceRotaValida++
-//         }
-//     }
-
-//     return rotasValidas
-// }
-
 
 func getRotasValidas(rotasPossiveis map[string][]string, trajeto consts.Trajeto) map[string][]string {
 	inicio := trajeto.Inicio
@@ -357,7 +319,7 @@ func (s *Servidor) atualizarArquivo(filePath string, postos []*consts.Posto) err
 }
 
 func serverAPICommunication(server *Servidor) {
-	log.Println("[SERVIDOR] Iniciando comunicação API REST entre servidores com Gin...")
+	//log.Println("[SERVIDOR] Iniciando comunicação API REST entre servidores com Gin...")
 
 	r := gin.Default()
 
@@ -501,7 +463,7 @@ func (s *Servidor) getPostosDisponiveis() ([]*consts.Posto, error) {
 }
 
 func (s *Servidor) ObterPostosDeOutroServidor(url string) ([]*consts.Posto, error) {
-	log.Printf("[SERVIDOR] Enviando requisição para %s/postos", url)
+	//log.Printf("[SERVIDOR] Enviando requisição para %s/postos", url)
 
 	// Cria a requisição HTTP GET
 	resp, err := http.Get(url + "/postos/disponiveis")
@@ -526,7 +488,7 @@ func (s *Servidor) ObterPostosDeOutroServidor(url string) ([]*consts.Posto, erro
 	for i := range postos {
 		postosPointers = append(postosPointers, &postos[i])
 	}
-	log.Printf("[SERVIDOR] Postos recebidos de %s: %+v", url, postos)
+	//log.Printf("[SERVIDOR] Postos recebidos de %s: %+v", url, postos)
 	return postosPointers, nil
 
 }
@@ -556,7 +518,7 @@ func main() {
 		rotasValidas := getRotasValidas(dadosRotas.Rotas, conteudoMsg)
 		log.Println("Rotas válidas: ", rotasValidas)
 		var mapaCompleto = make(map[string][]consts.Posto) // Inicializa o mapa
-		var paradas []consts.Parada
+		var paradas map[string][]consts.Parada
 		for _, rota := range rotasValidas {
 			// AQUI O SERVIDOR DEVE SOLICITAR AOS OUTROS SERVIDORES VIA HTTP OS SEUS PONTOS PARA ASSIM PODER GERAR ROTAS. SÓ FUI OBSERVAR ISSO AGORA. MAS COMO EU VOU MONTAR O MAP PARA PASSAR PRA FUNÇÃO DE GERAR
 			// ROTAS?
@@ -586,7 +548,7 @@ func main() {
 				}
 			}
 
-			log.Println("Mapa completo: ", mapaCompleto)
+			//log.Println("Mapa completo: ", mapaCompleto)
 			// paradas := rotaslib.GerarRotas(
 			// 	conteudoMsg.CarroMQTT,
 			// 	rota,
@@ -597,10 +559,20 @@ func main() {
 			log.Println("Paradas: ", paradas)
 
 		}
-		ConteudoJSON, _ := json.Marshal(paradas)
+		ConteudoJSON, err := json.Marshal(paradas)
+		if err != nil {
+			log.Println("Erro ao codificar mensagem:", err)
+			return
+		}
+		msg, err := json.Marshal(consts.MsgServer{ID: server.ID, Cidade: server.Cidade, Conteudo: ConteudoJSON})
+		if err !=nil{
+			log.Println("Erro ao codificar mensagem:", err)
+			return
+		}
 		topic := topics.ServerResponteRoutes(conteudoMsg.CarroMQTT.ID, server.Cidade)
 		log.Printf("[SERVIDOR] Respondendo para: %s", topic)
-		server.Client.Publish(topic, ConteudoJSON)
+		server.Client.Publish(topic, msg)
+		log.Println("[DEBUG] JSON final enviado:", string(msg))
 	})
 
 	select {} // mantém o servidor ativo
