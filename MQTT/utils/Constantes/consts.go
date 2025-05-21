@@ -77,6 +77,10 @@ type Reserva struct{
 }
 
 
+type Participante2PC struct {
+	PostoID string
+	URL     string
+}
 
 
 var cidades = map[string]struct {

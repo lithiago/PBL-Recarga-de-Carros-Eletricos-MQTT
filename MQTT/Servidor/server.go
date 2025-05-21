@@ -163,6 +163,7 @@ func (S *Servidor) regitrarHandlersMQTT(){
 		}
 		log.Printf("Reserva recebida: %+v\n", reserva)
 		
+		// MONTAR URL QUE VAI FAZER PARTE DE PARTICIPANTE2PC EX: "http//:servidor-ip/config.container/portas"
 
 
 	})
