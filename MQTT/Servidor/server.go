@@ -13,7 +13,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -300,7 +299,7 @@ func serverAPICommunication(server *Servidor) {
 	log.Println("[SERVIDOR] Iniciando comunicação API REST entre servidores com Gin...")
 
 	r := gin.Default()
-
+	// somente para testes
 	r.GET("/postos", func(c *gin.Context) {
 		postos, err := server.getPostosFromJSON()
 		if err != nil {
@@ -317,6 +316,8 @@ func serverAPICommunication(server *Servidor) {
 	})
 
 	r.GET("/postos/disponiveis", func(c *gin.Context) {
+		server.mu.Lock()
+		defer server.mu.Unlock()
 		postos, err := server.getPostosDisponiveis()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -330,6 +331,8 @@ func serverAPICommunication(server *Servidor) {
 	})
 
 	r.PATCH("/postos/:id/adicionar", func(c *gin.Context) {
+		server.mu.Lock()
+		defer server.mu.Unlock()
 		id := c.Param("id")
 		var carro struct {
 			ID                string  `json:"id"`
@@ -386,6 +389,8 @@ func serverAPICommunication(server *Servidor) {
 	})
 
 	r.PATCH("/postos/:id/remover", func(c *gin.Context) {
+		server.mu.Lock()
+		defer server.mu.Unlock()
 		id := c.Param("id")
 		var carro consts.Carro
 		if err := c.ShouldBindJSON(&carro); err != nil {
@@ -426,7 +431,28 @@ func serverAPICommunication(server *Servidor) {
 		c.JSON(http.StatusOK, postoAtualizado)
 	})
 
+	r.POST("/reservar", func(c *gin.Context) {
+		var req struct {
+			Participantes []Participante2PC `json:"participantes"`
+			Carro         consts.Carro      `json:"carro"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos"})
+			return
+		}
+
+		// NÃO use server.mu.Lock() aqui!
+		err := server.TwoPhaseCommit(req.Participantes, req.Carro)
+		if err != nil {
+			c.JSON(http.StatusConflict, gin.H{"result": "abort", "error": err.Error()})
+		} else {
+			c.JSON(http.StatusOK, gin.H{"result": "committed"})
+		}
+	})
+
 	r.POST("/2pc/prepare", func(c *gin.Context) {
+		server.mu.Lock()
+		defer server.mu.Unlock()
 		var req struct {
 			PostoID string       `json:"posto_id"`
 			Carro   consts.Carro `json:"carro"`
@@ -458,6 +484,8 @@ func serverAPICommunication(server *Servidor) {
 		c.JSON(http.StatusNotFound, gin.H{"result": "abort", "error": "Posto não encontrado"})
 	})
 	r.POST("/2pc/commit", func(c *gin.Context) {
+		server.mu.Lock()
+		defer server.mu.Unlock()
 		var req struct {
 			PostoID string       `json:"posto_id"`
 			Carro   consts.Carro `json:"carro"`
@@ -497,6 +525,8 @@ func serverAPICommunication(server *Servidor) {
 	})
 
 	r.POST("/2pc/abort", func(c *gin.Context) {
+		server.mu.Lock()
+		defer server.mu.Unlock()
 		var req struct {
 			PostoID string       `json:"posto_id"`
 			Carro   consts.Carro `json:"carro"`
@@ -684,46 +714,40 @@ func main() {
 	// server.AssinarEventosDoCarro()
 
 	go serverAPICommunication(&server)
-	time.Sleep(10 * time.Second)
 	// log.Println("[SERVIDOR] Iniciando comunicação MQTT...")
 
 	// topic := topics.CarroRequestRotas("+", strings.ToLower(server.Cidade))
 	// server.Client.Subscribe(topic)
 	// log.Printf("[SERVIDOR] Assinando tópico: %s", topic)
 
-	participantes := []Participante2PC{
-		{URL: "http://servidor-feiradesantana:8080", PostoID: "FSA01"},
-		{URL: "http://servidor-ilheus:8081", PostoID: "IL01"},
-		{URL: "http://servidor-salvador:8082", PostoID: "SSA01"},
-	}
+	// participantes := []Participante2PC{
+	// 	{URL: "http://servidor-feiradesantana:8080", PostoID: "FSA01"},
+	// 	{URL: "http://servidor-ilheus:8081", PostoID: "IL01"},
+	// 	{URL: "http://servidor-salvador:8082", PostoID: "SSA01"},
+	// }
 
-	carro := consts.Carro{
-		ID:                "CARRO_TESTE_2PC",
-		Bateria:           80.0,
-		X:                 100.0,
-		Y:                 200.0,
-		Capacidadebateria: 100.0,
-		Consumobateria:    10.0,
-	}
+	// carro := consts.Carro{
+	// 	ID:                "CARRO_TESTE_2PC",
+	// 	Bateria:           80.0,
+	// 	X:                 100.0,
+	// 	Y:                 200.0,
+	// 	Capacidadebateria: 100.0,
+	// 	Consumobateria:    10.0,
+	// }
 
-	//Teste:
-	// Adiciar um carro na fila com a função
-	// depois tentar fazer o 2pc
-	// deverá falhar
-	// depois remover o carro da fila com a função
-	// e tentar fazer o 2pc novamente
+	// log.Println("[TESTE] Iniciando teste do TwoPhaseCommit...")
+	// err := server.TwoPhaseCommit(participantes, carro)
+	// if err != nil {
+	// 	log.Printf("[TESTE] Falha no 2PC: %v", err)
+	// } else {
+	// 	log.Println("[TESTE] 2PC executado com sucesso!")
+	// }
 
-	log.Println("[TESTE] Iniciando teste do TwoPhaseCommit...")
-	err := server.TwoPhaseCommit(participantes, carro)
-	if err != nil {
-		log.Printf("[TESTE] Falha no 2PC: %v", err)
-	} else {
-		log.Println("[TESTE] 2PC executado com sucesso!")
-	}
-
+	// Preciso dos handlers para os eventos/requests do cliente
 	select {} // mantém o servidor ativo
 }
 
 //TODO: mandar os postos disponiveis para o carro
-//TODO: 2pc
 //TODO: tratar concorrência
+//TODO: talvez precise retirar o mutex do que envolve o two phase commit
+//TODO: request do carro pelo terminal, script não compensa
