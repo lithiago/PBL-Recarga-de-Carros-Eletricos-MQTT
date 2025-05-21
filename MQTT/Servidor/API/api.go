@@ -13,7 +13,6 @@ import (
 )
 
 func ServerAPICommunication(arquivoPontos string) {
-	//log.Println("[SERVIDOR] Iniciando comunicação API REST entre servidores com Gin...")
 
 	r := gin.Default()
 
@@ -127,6 +126,88 @@ func ServerAPICommunication(arquivoPontos string) {
 
 		c.JSON(http.StatusOK, postoAtualizado)
 	})
+	r.POST("/2pc/prepare", func(c *gin.Context) {
+		var req struct {
+			PostoID string       `json:"posto_id"`
+			Carro   consts.Carro `json:"carro"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
+			return
+		}
+
+		postos, err := storage.GetPostosFromJSON(arquivoPontos)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao ler postos"})
+			return
+		}
+
+		for _, p := range postos {
+			if p.Id == req.PostoID {
+				if len(p.Fila) > 0 {
+					// Já existe algum carro na fila, não pode reservar
+					c.JSON(http.StatusOK, gin.H{"result": "abort"})
+					return
+				}
+				// Aqui você pode adicionar o carro como "pendente" se quiser
+				c.JSON(http.StatusOK, gin.H{"result": "ok"})
+				return
+			}
+		}
+
+		c.JSON(http.StatusNotFound, gin.H{"result": "abort", "error": "Posto não encontrado"})
+	})
+	r.POST("/2pc/commit", func(c *gin.Context) {
+		var req struct {
+			PostoID string       `json:"posto_id"`
+			Carro   consts.Carro `json:"carro"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
+			return
+		}
+
+		postos, err := storage.GetPostosFromJSON(arquivoPontos)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao ler postos"})
+			return
+		}
+
+		var postoAtualizado *consts.Posto
+		for _, p := range postos {
+			if p.Id == req.PostoID {
+				// Adiciona o carro à fila (commit efetivo)
+				p.Fila = append(p.Fila, req.Carro)
+				postoAtualizado = p
+				break
+			}
+		}
+
+		if postoAtualizado == nil {
+			c.JSON(http.StatusNotFound, gin.H{"result": "abort", "error": "Posto não encontrado"})
+			return
+		}
+
+		if err := storage.AtualizarArquivo(arquivoPontos, postos); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao atualizar o arquivo JSON"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"result": "committed"})
+	})
+
+	r.POST("/2pc/abort", func(c *gin.Context) {
+		var req struct {
+			PostoID string       `json:"posto_id"`
+			Carro   consts.Carro `json:"carro"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
+			return
+		}
+		// Aqui: desfaça a reserva temporária (ex: remova o carro da fila se estava pendente)
+		c.JSON(http.StatusOK, gin.H{"result": "aborted"})
+	})
 
 	// Inicia o servidor HTTP na porta 8080
 	porta := os.Getenv("PORTA")
@@ -166,6 +247,50 @@ func ObterPostosDeOutroServidor(url string) ([]*consts.Posto, error) {
 	//log.Printf("[SERVIDOR] Postos recebidos de %s: %+v", url, postos)
 	return postosPointers, nil
 
+}
+
+func TwoPhaseCommit(participantes []Participante2PC, carro consts.Carro) error {
+	payloadTemplate := `{"posto_id":"%s","carro":%s}`
+
+	// Fase 1: Prepare
+	okCount := 0
+	for _, p := range participantes {
+		carroJSON, _ := json.Marshal(carro)
+		payload := fmt.Sprintf(payloadTemplate, p.PostoID, string(carroJSON))
+		resp, err := http.Post(p.URL+"/2pc/prepare", "application/json", strings.NewReader(payload))
+		if err != nil {
+			log.Printf("[2PC] Erro ao enviar prepare para %s: %v", p.URL, err)
+			break
+		}
+		defer resp.Body.Close()
+		var res map[string]string
+		json.NewDecoder(resp.Body).Decode(&res)
+		if res["result"] == "ok" {
+			okCount++
+		} else {
+			break
+		}
+	}
+
+	// Se todos aceitaram, commit
+	if okCount == len(participantes) {
+		for _, p := range participantes {
+			carroJSON, _ := json.Marshal(carro)
+			payload := fmt.Sprintf(payloadTemplate, p.PostoID, string(carroJSON))
+			http.Post(p.URL+"/2pc/commit", "application/json", strings.NewReader(payload))
+		}
+		log.Println("[2PC] Commit enviado para todos os participantes")
+		return nil
+	}
+
+	// Se algum abortou, abort para todos
+	for _, p := range participantes {
+		carroJSON, _ := json.Marshal(carro)
+		payload := fmt.Sprintf(payloadTemplate, p.PostoID, string(carroJSON))
+		http.Post(p.URL+"/2pc/abort", "application/json", strings.NewReader(payload))
+	}
+	log.Println("[2PC] Abort enviado para todos os participantes")
+	return fmt.Errorf("2PC abortado por algum participante")
 }
 
 

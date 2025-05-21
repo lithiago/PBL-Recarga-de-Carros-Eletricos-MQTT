@@ -76,6 +76,9 @@ type Reserva struct{
 	Paradas []Parada `json:"paradas"`
 }
 
+
+
+
 var cidades = map[string]struct {
 	x, y, raio float64
 }{
