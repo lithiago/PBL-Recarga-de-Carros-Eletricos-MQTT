@@ -3,6 +3,7 @@ package Rotas
 import (
 	consts "MQTT/utils/Constantes"
 	"log"
+	"strings"
 )
 
 // Calcula quantos quilômetros o carro pode andar com a bateria fornecida
@@ -13,225 +14,115 @@ func calcularAutonomia(consumoKW, capacidadeBateria float64) float64 {
 	return capacidadeBateria / consumoKW
 }
 
-/* func GerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coordenadas, postosPorCidade map[string][]consts.Posto) map[string][]consts.Parada {
-	log.Println("Criando rotas...")
-	log.Printf("Bateria: %+v", carro.Bateria)
-	log.Printf("Rotas: %v", rota)
-
-	autonomiaTotal := calcularAutonomia(carro.Consumobateria, carro.CapacidadeBateria)
-	log.Printf("Autonomia total: %.2f km", autonomiaTotal)
-
-	posicaoCarro := consts.Coordenadas{X: carro.X, Y: carro.Y}
-	paradasPorCidade := make(map[string][]consts.Parada)
-
-	for _, cidade := range rota {
-		destino := cidades[cidade]
-
-			// Se já estiver na cidade, segue para o próximo destino
-			if posicaoCarro.X == destino.X && posicaoCarro.Y == destino.Y {
-				log.Printf("O carro já está em %s.", cidade)
-				continue
-			}
-
-
-		for {
-			distanciaAteDestino := calcularDistancia(posicaoCarro, destino)
-			log.Printf("Distância até %s: %.2f km", cidade, distanciaAteDestino)
-
-			// Se alcançável, vai direto
-			if distanciaAteDestino <= autonomiaTotal {
-				log.Printf("Destino %s alcançável sem paradas.", cidade)
-				posicaoCarro = destino
-				break
-			}
-
-			var melhorPosto consts.Posto
-			var cidadeRecarga string
-			melhorProgresso := distanciaAteDestino
-			encontrouPosto := false
-
-			fatorProgresso := 0.8
-			distanciaLimite := autonomiaTotal * fatorProgresso
-
-			for cidadeAtual, postos := range postosPorCidade {
-				for _, posto := range postos {
-					distanciaAtePosto := calcularDistancia(posicaoCarro, consts.Coordenadas{X: posto.X, Y: posto.Y})
-					distanciaPostoAteDestino := calcularDistancia(consts.Coordenadas{X: posto.X, Y: posto.Y}, destino)
-
-					if distanciaAtePosto <= autonomiaTotal &&
-						distanciaAtePosto < distanciaLimite &&
-						distanciaPostoAteDestino < melhorProgresso {
-
-						melhorPosto = posto
-						cidadeRecarga = cidadeAtual
-						melhorProgresso = distanciaPostoAteDestino
-						encontrouPosto = true
-					}
-				}
-			}
-
-			if !encontrouPosto {
-				log.Fatalf("Erro: Nenhum posto viável encontrado a partir da posição atual (%+v).", posicaoCarro)
-				break
-			}
-
-			log.Printf("Parada adicionada: Cidade %s, Posto %+v", cidadeRecarga, melhorPosto)
-			parada := consts.Parada{
-				Cidade:       cidadeRecarga,
-				PostoRecarga: melhorPosto,
-			}
-			paradasPorCidade[cidadeRecarga] = append(paradasPorCidade[cidadeRecarga], parada)
-
-			// Atualiza a posição do carro para o posto escolhido
-			posicaoCarro = consts.Coordenadas{X: melhorPosto.X, Y: melhorPosto.Y}
-		}
-	}
-
-	logParadas(paradasPorCidade)
-
-	return paradasPorCidade
-}
-
-
-func logParadas(paradas map[string][]consts.Parada) {
-	log.Println("=== PARADAS DEFINIDAS NA ROTA ===")
-	for cidade, lista := range paradas {
-		log.Printf("[CIDADE] %s", cidade)
-		for i, parada := range lista {
-			p := parada.PostoRecarga
-			log.Printf("  -> [%d] Posto: %s (ID: %s)", i+1, p.Nome, p.Id)
-			log.Printf("     Coordenadas: (X: %.2f, Y: %.2f)", p.X, p.Y)
-			log.Printf("     Custo/kWh: R$ %.2f", p.CustoKW)
-			log.Printf("     Carros na fila: %d", len(p.Fila))
-		}
-	}
-	log.Println("==================================")
-}
-
-
-*/
-
-/* func GerarRotasOtimizadas (carro consts.Carro, rotas[]string, cidades map[string]consts.Coordenadas, todosOsPostos []consts.Posto)map[string][]consts.Parada{
-	log.Println("Criando rotas otmizadas...")
-	autonomiaTotal := calcularAutonomia(carro.Consumobateria, carro.CapacidadeBateria)
-	log.Printf("Autonomia total: %.2f km", autonomiaTotal)
-
-
-	posicaoCarro := consts.Coordenadas{X: carro.X, Y: carro.Y}
-	grafo := grafoLib.CriarGrafo(cidades, todosOsPostos, autonomiaTotal)
-	paradasPorRota := make(map[string][]consts.Parada)
-	for _, cidadeDestino := range rotas {
-		coordenadasDestino := cidades[cidadeDestino]
-		log.Printf("Coordenadas destino: %+v", coordenadasDestino)
-		destID := strings.ToLower(strings.ReplaceAll(cidadeDestino, " ", ""))
-
-		// Um nó temporário para a posição atual do carro
-		idCarro := "carro_atual"
-		grafo.Nos[idCarro] = grafoLib.No{
-			ID:         idCarro,
-			Coordenada: posicaoCarro,
-		}
-		for idDestino, no := range grafo.Nos{
-			if idDestino == idCarro{
-				continue
-			}
-			distancia:= CalcularDistancia(posicaoCarro, no.Coordenada)
-			if distancia <= autonomiaTotal{
-				grafo.Arestas[idCarro] = append(grafo.Arestas[idCarro], grafoLib.Aresta{
-					Destino:   idDestino,
-					Distancia: distancia,
-				})
-			}
-		}
-
-
-		// Executa o algoritmo de caminho mínimo (Dijkstra ou BFS com contagem de saltos)
-	paradas, err := grafoLib.EncontrarCaminhoComMinimoDeParadasNoGrafo(grafo, idCarro, destID)
-	if err != nil {
-		log.Printf("Erro ao gerar rota até %s: %v", cidadeDestino, err)
-		continue
-	}
-
-	paradasPorRota[cidadeDestino] = paradas
-	}
-} */
-
 func GerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coordenadas, todosOsPostos map[string][]consts.Posto) []consts.Parada {
-	log.Println("Criando rotas...")
-	log.Printf("Bateria: %+v", carro.Bateria)
-	log.Printf("Rotas: %v", rota)
+	log.Println("🔄 Iniciando cálculo da rota com paradas automáticas...")
 
-	autonomiaTotal := calcularAutonomia(carro.Consumobateria, carro.CapacidadeBateria)
-	log.Printf("Autonomia total: %.2f km", autonomiaTotal)
+	posicaoAtual := consts.Coordenadas{X: carro.X, Y: carro.Y}
+	bateriaAtual := carro.Bateria
+	paradas := []consts.Parada{}
 
-	posicaoCarro := consts.Coordenadas{X: carro.X, Y: carro.Y}
-	paradasPorCidade := []consts.Parada{}
+	for _, nomeCidade := range rota {
+		destino := cidades[nomeCidade]
 
-	for _, cidade := range rota {
-		destino := cidades[cidade]
-
-			// Se já estiver na cidade, segue para o próximo destino
-			if posicaoCarro.X == destino.X && posicaoCarro.Y == destino.Y {
-				log.Printf("O carro já está em %s.", cidade)
-				continue
-			}
-		
+		// Se já estamos no destino, ignorar
+		if posicaoAtual.X == destino.X && posicaoAtual.Y == destino.Y {
+			continue
+		}
 
 		for {
-			distanciaAteDestino := consts.CalcularDistancia(posicaoCarro, destino)
-			log.Printf("Distância até %s: %.2f km", cidade, distanciaAteDestino)
+			distancia := consts.CalcularDistancia(posicaoAtual, destino)
+			autonomia := bateriaAtual / carro.Consumobateria
+			log.Printf("📍 Tentando ir de (%.2f, %.2f) até %s. Distância: %.2f, Autonomia: %.2f", posicaoAtual.X, posicaoAtual.Y, nomeCidade, distancia, autonomia)
 
-			// Se alcançável, vai direto
-			if distanciaAteDestino <= autonomiaTotal {
-				log.Printf("Destino %s alcançável sem paradas.", cidade)
-				posicaoCarro = destino
+			// Se o destino é alcançável, simula a viagem e sai do loop
+			if distancia <= autonomia {
+				bateriaAtual -= distancia * carro.Consumobateria
+				posicaoAtual = destino
+				log.Printf("✅ Chegou diretamente em %s. Bateria restante: %.2f", nomeCidade, bateriaAtual)
 				break
 			}
 
-			var melhorPosto consts.Posto
-			var cidadeRecarga string
-			melhorProgresso := distanciaAteDestino
-			encontrouPosto := false
+			// Caso não seja alcançável, procurar melhor posto dentro da autonomia
+			var melhorPosto *consts.Posto
+			var menorDistancia float64 = 1e9
 
-			fatorProgresso := 0.8
-			distanciaLimite := autonomiaTotal * fatorProgresso
-
-			for cidadeAtual, postos := range todosOsPostos {
-				for _, posto := range postos {
-					distanciaAtePosto := consts.CalcularDistancia(posicaoCarro, consts.Coordenadas{X: posto.X, Y: posto.Y})
-					distanciaPostoAteDestino := consts.CalcularDistancia(consts.Coordenadas{X: posto.X, Y: posto.Y}, destino)
-
-					if distanciaAtePosto <= autonomiaTotal &&
-						distanciaAtePosto < distanciaLimite &&
-						distanciaPostoAteDestino < melhorProgresso {
-
-						melhorPosto = posto
-						cidadeRecarga = cidadeAtual
-						melhorProgresso = distanciaPostoAteDestino
-						encontrouPosto = true
+			for _, listaPostos := range todosOsPostos {
+				for _, posto := range listaPostos {
+					distanciaAtePosto := consts.CalcularDistancia(posicaoAtual, consts.Coordenadas{X: posto.X, Y: posto.Y})
+					if distanciaAtePosto <= autonomia && distanciaAtePosto < menorDistancia {
+						menorDistancia = distanciaAtePosto
+						tmp := posto
+						melhorPosto = &tmp
 					}
 				}
 			}
 
-			if !encontrouPosto {
-				log.Fatalf("Erro: Nenhum posto viável encontrado a partir da posição atual (%+v).", posicaoCarro)
-				break
+			if melhorPosto == nil {
+				log.Fatalf("❌ ERRO: Não há posto viável para recarga entre (%.2f, %.2f) e %s", posicaoAtual.X, posicaoAtual.Y, nomeCidade)
 			}
 
-			log.Printf("Parada adicionada: Cidade %s, Posto %+v", cidadeRecarga, melhorPosto)
-			parada := consts.Parada{
-				NomePosto:       melhorPosto.Nome,
-				IDPosto: melhorPosto.Id,
+			log.Printf("🔋 Parada necessária no posto: %s (%.2f, %.2f)", melhorPosto.Nome, melhorPosto.X, melhorPosto.Y)
+
+			// Simula deslocamento até o posto
+			distanciaAtePosto := consts.CalcularDistancia(posicaoAtual, consts.Coordenadas{X: melhorPosto.X, Y: melhorPosto.Y})
+			bateriaAtual -= distanciaAtePosto * carro.Consumobateria
+			bateriaAtual = carro.CapacidadeBateria // recarrega totalmente
+			posicaoAtual = consts.Coordenadas{X: melhorPosto.X, Y: melhorPosto.Y}
+
+			// Adiciona parada à lista
+			paradas = append(paradas, consts.Parada{
+				NomePosto: melhorPosto.Nome,
+				IDPosto:   melhorPosto.Id,
 				X:         melhorPosto.X,
 				Y:         melhorPosto.Y,
-			}
-			paradasPorCidade = append(paradasPorCidade, parada)
-
-			// Atualiza a posição do carro para o posto escolhido
-			posicaoCarro = consts.Coordenadas{X: melhorPosto.X, Y: melhorPosto.Y}
+			})
 		}
 	}
 
-	return paradasPorCidade
+	log.Printf("🚗 Paradas planejadas (%d):", len(paradas))
+	for i, p := range paradas {
+		log.Printf("  [%d] %s (%s) - X: %.2f, Y: %.2f", i+1, p.NomePosto, p.IDPosto, p.X, p.Y)
+	}
+
+	return paradas
 }
 
+func GetRotasValidas(rotasPossiveis map[string][]string, trajeto consts.Trajeto) map[string][]string {
+	inicio := strings.ToLower(trajeto.Inicio)
+	destino := strings.ToLower(trajeto.Destino)
+
+	mapaCompleto := make(map[string][]string)
+
+	log.Printf("Início: %s, Destino: %s", inicio, destino)
+
+	for nomeRota, rota := range rotasPossiveis {
+		var indiceDestino int
+		encontrouDestino := false
+
+		// Encontrar índice do destino
+		for j, cidade := range rota {
+			if strings.ToLower(cidade) == destino {
+				indiceDestino = j
+				encontrouDestino = true
+				break
+			}
+		}
+
+		if !encontrouDestino {
+			continue
+		}
+
+		// Verifica se o início está ANTES do destino
+		for k, cidade := range rota[:indiceDestino+1] {
+			if strings.ToLower(cidade) == inicio {
+				if k == 0 { // Começa exatamente do início?
+					log.Printf("✔ Rota válida encontrada: %s", nomeRota)
+					mapaCompleto[nomeRota] = rota[:indiceDestino+1]
+				}
+				break
+			}
+		}
+	}
+
+	return mapaCompleto
+}

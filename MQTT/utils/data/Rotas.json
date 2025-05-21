@@ -1,15 +1,15 @@
 {
   "Cidades": {
-    "Feira de Santana": { "x": 97.67, "y": 200.0 },
-    "Salvador": { "x": 152.0, "y": 249.0 },
-    "Ilheus": { "x": 300.67, "y": 101.0 }
+    "FSA": {"nome":"Feira de Santana", "x": 97.67, "y": 200.0 },
+    "SSA": {"nome":"Salvador","x": 152.0, "y": 249.0 },
+    "ILH": {"nome":"Ilheus", "x": 300.67, "y": 101.0 }
   },
   "Rotas": {
-    "Rota1": ["feiradesantana", "salvador", "ilheus"],
-    "Rota2": ["feiradesantana", "ilheus", "salvador"],
-    "Rota3": ["salvador", "feiradesantana", "ilheus"],
-    "Rota4": ["salvador", "ilheus", "feiradesantana"],
-    "Rota5": ["ilheus", "feiradesantana", "salvador"],
-    "Rota6": ["ilheus", "salvador", "feiradesantana"]
+    "Rota1": ["FSA", "SSA", "ILH"],
+    "Rota2": ["FSA", "ILH", "SSA"],
+    "Rota3": ["SSA", "FSA", "ILH"],
+    "Rota4": ["SSA", "ILH", "FSA"],
+    "Rota5": ["ILH", "FSA", "SSA"],
+    "Rota6": ["ILH", "SSA", "FSA"]
   }
 }

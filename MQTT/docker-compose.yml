@@ -23,7 +23,7 @@ services:
       - "8080:8080"  # Mapeia a porta 8080 do container para a 8080 do host
     environment:
       - PORTA=8080
-      - CIDADE=FeiraDeSantana
+      - CIDADE=FSA
       - ARQUIVO_JSON=/data/FeiraDeSantana.json
       - ARQUIVO_JSON_ROTAS=/data/Rotas.json
       - CONTAINER=servidor-feiradesantana
@@ -40,7 +40,7 @@ services:
       - "8081:8080"  # Mapeia a porta 8081 do container para a 8080 do host
     environment:
       - PORTA=8081
-      - CIDADE=Ilheus
+      - CIDADE=ILH
       - ARQUIVO_JSON=/data/Ilheus.json
       - ARQUIVO_JSON_ROTAS=/data/Rotas.json
       - CONTAINER=servidor-ilheus
@@ -57,7 +57,7 @@ services:
       - "8082:8080" #Mapeia a porta 8080 do container para a 8080 do host
     environment:
       - PORTA=8082
-      - CIDADE=Salvador
+      - CIDADE=SSA
       - ARQUIVO_JSON=/data/Salvador.json
       - ARQUIVO_JSON_ROTAS=/data/Rotas.json
       - CONTAINER=servidor-salvador

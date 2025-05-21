@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 	"math"
+	"net"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -37,7 +38,8 @@ type Carro struct {
 
 type Mensagem struct {
 	Conteudo map[string]interface{} `json:"conteudo"`
-	Msg          string `json:"msg"`
+	Origem string				 `json:"origem"`
+	ID          string `json:"msg"`
 }
 
 type MsgServer struct {
@@ -64,6 +66,7 @@ type Trajeto struct {
 }
 
 type Coordenadas struct {
+	Nome string
 	X float64
 	Y float64
 }
@@ -71,13 +74,13 @@ type Coordenadas struct {
 var cidades = map[string]struct {
 	x, y, raio float64
 }{
-	"Feira de Santana": {x: 97.67, y: 200.0, raio: 225.9},  // Raio aproximado calculado
-	"Salvador":         {x: 152.0, y: 249.0, raio: 210.1},
-	"Ilheus":           {x: 300.67, y: 101.0, raio: 225.9},
+	"FSA": {x: 97.67, y: 200.0, raio: 225.9},  // Raio aproximado calculado
+	"SSA":         {x: 152.0, y: 249.0, raio: 210.1},
+	"ILH":           {x: 300.67, y: 101.0, raio: 225.9},
 }
 
 
-var CidadesArray = []string{"Feira de Santana", "Salvador", "Ilheus"}
+var CidadesArray = []string{"FSA", "SSA", "ILH"}
 
 
 // Calcula a distância euclidiana entre dois pontos
@@ -100,6 +103,16 @@ func CidadeAtualDoCarro(xCarro, yCarro float64) string {
 		}
 	}
 	return "Fora de cobertura"
+}
+
+func GetLocalIP() (string, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String(), nil
 }
 
 const Broker = "tcp://mosquitto:1845"
