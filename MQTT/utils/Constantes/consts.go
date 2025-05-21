@@ -71,6 +71,11 @@ type Coordenadas struct {
 	Y float64
 }
 
+type Reserva struct{
+	CarroID string `json:"carroid"`
+	Paradas []Parada `json:"paradas"`
+}
+
 var cidades = map[string]struct {
 	x, y, raio float64
 }{

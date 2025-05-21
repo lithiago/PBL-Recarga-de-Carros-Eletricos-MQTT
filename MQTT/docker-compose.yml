@@ -12,6 +12,8 @@ services:
       dockerfile: ./Carro/Dockerfile
     depends_on:
       - mosquitto
+    stdin_open: true
+    tty: true
 
   servidor-feiradesantana:
     build:

@@ -167,3 +167,5 @@ func ObterPostosDeOutroServidor(url string) ([]*consts.Posto, error) {
 	return postosPointers, nil
 
 }
+
+

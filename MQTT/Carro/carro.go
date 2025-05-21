@@ -5,12 +5,14 @@ import (
 	topics "MQTT/utils/Topicos"
 	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
 	router "MQTT/utils/mqttLib/Router"
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
 	"net"
 	"os"
+	"strconv"
 	"strings" // Para lowercasing do comando do usuário
 	"time"
 )
@@ -26,7 +28,13 @@ var (
 	incomingMqttChan = make(chan MqttMessage, 100) // Canal para mensagens MQTT recebidas, com buffer
 	userInputChan    = make(chan string)           // Canal para entrada do usuário
 	quitChan         = make(chan os.Signal, 1)     // Canal para sinal de encerramento
+	promptChan  = make(chan Prompt)
 )
+
+type Prompt struct {
+	Pergunta   string
+	RespostaCh chan string
+}
 
 type Carro struct {
 	ID                string                 `json:"id"`
@@ -52,22 +60,20 @@ func (c *Carro) SolicitarReserva(rotas map[string][]consts.Parada, cidadeDestino
 		rotasIndexadas = append(rotasIndexadas, nome)
 	}
 
-	var escolha int
-	fmt.Print("\n Digite o número da rota desejada: ")
-	fmt.Scanln(&escolha)
+	input := perguntarUsuario("Digite o número da rota desejada: ")
+	escolha, err := strconv.Atoi(input)
 
 	if escolha < 0 || escolha >= len(rotasIndexadas) {
 		fmt.Println("❌ Escolha inválida.")
 		return
+		
 	}
+
 	nomeRotaEscolhida := rotasIndexadas[escolha]
 	fmt.Printf("Você escolheu a rota: %s\n", nomeRotaEscolhida)
 	paradasEscolhidas := rotas[nomeRotaEscolhida]
 	// Enviar a rota escolhida para o servidor
-	reserva := struct{
-		CarroID string                 `json:"carroid"`
-		Paradas []consts.Parada        `json:"paradas"`	
-	}{
+	reserva := consts.Reserva{
 		CarroID: c.ID,
 		Paradas: paradasEscolhidas,
 	}
@@ -168,7 +174,6 @@ func (c *Carro) exibirMenu() {
 	fmt.Println("  2️⃣  | Simular Viagem") // Exemplo de nova opção
 	fmt.Println("  3️⃣  | Encerrar Conexão")
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	fmt.Print(" 👉 Escolha uma opção: ")
 }
 
 func setupMqttHandlers(router *router.Router, carID string) {
@@ -234,6 +239,8 @@ func processIncomingMqttMessages(car *Carro) {
 			car.SolicitarReserva(paradasMap, msgServer.Origem, msgServer.ID)
 
 			//Adicione lógica para exibir visualmente ou armazenar rotas
+		} else if strings.HasPrefix(msg.Topic, topics.CarroRequestReserva(car.ID, "", "")) {
+			log.Println("[CARRO] [Callback MQTT] Reserva recebida.")
 		} else {
 			log.Printf("[Processador MQTT] Tópico desconhecido ou não tratado especificamente: %s\n", msg.Topic)
 		}
@@ -241,22 +248,22 @@ func processIncomingMqttMessages(car *Carro) {
 	log.Println("[Processador MQTT] Encerrando.")
 }
 
-// readUserInput lê a entrada do terminal e envia para o canal userInputChan
-func readUserInput(inputChan chan<- string) {
-	log.Println("[Entrada Usuário] Iniciado. Digite '3' para sair.")
-	for {
-		// Não exibir o menu aqui, pois é responsabilidade do loop principal
-		// fmt.Print(">> ") // Não é necessário aqui, pois exibirMenu já faz
-		var input string
-		_, err := fmt.Scanln(&input) // Lê a linha completa
-		if err != nil {
-			log.Printf("[Entrada Usuário] Erro ao ler entrada: %v\n", err)
-			// Pode querer enviar um sinal de erro ou fechar o canal aqui
-			return
-		}
-		inputChan <- strings.TrimSpace(input) // Envia a entrada para o canal
-	}
-}
+// // readUserInput lê a entrada do terminal e envia para o canal userInputChan
+// func readUserInput(inputChan chan<- string) {
+// 	log.Println("[Entrada Usuário] Iniciado. Digite '3' para sair.")
+// 	for {
+// 		// Não exibir o menu aqui, pois é responsabilidade do loop principal
+// 		// fmt.Print(">> ") // Não é necessário aqui, pois exibirMenu já faz
+// 		var input string
+// 		_, err := fmt.Scanln(&input) // Lê a linha completa
+// 		if err != nil {
+// 			log.Printf("[Entrada Usuário] Erro ao ler entrada: %v\n", err)
+// 			// Pode querer enviar um sinal de erro ou fechar o canal aqui
+// 			return
+// 		}
+// 		inputChan <- strings.TrimSpace(input) // Envia a entrada para o canal
+// 	}
+// }
 
 func (c *Carro) AssinarRespostaServidor() {
 	topicResp := topics.ServerResponseToCar(c.ID)
@@ -268,6 +275,31 @@ func (c *Carro) AssinarRespostaServidor() {
 	log.Printf("[CARRO] Subscrito ao tópico: %s\n", topicRoutes)
 }
 
+
+func (c *Carro) selecionarCidade() string{
+	// Remove a cidade atual da lista de cidades disponíveis
+	cidades := make([]string, 0, len(consts.CidadesArray))
+	for _, cidade := range consts.CidadesArray {
+		log.Printf("[CARRO] Cidade: %s\n [CARRO] Cidade Atual: %s\n", cidade, c.CidadeAtual)
+		if cidade != c.CidadeAtual {
+			cidades = append(cidades, cidade)
+		}
+	}
+
+	fmt.Println("Cidades disponíveis para rota:")
+	for i, cidade := range cidades {
+		fmt.Printf("  %d - %s\n", i, cidade)
+	}
+	
+	input := perguntarUsuario(strings.TrimSpace("Digite a opção para cidade de destino: "))
+	escolha, _ := strconv.Atoi(input)
+	if escolha < 0 || escolha >= len(cidades) {
+		fmt.Println("Opção inválida. Tente novamente.")
+		return ""
+	}
+	cidadeDestino := cidades[escolha]
+	return cidadeDestino
+}
 // handleUserCommand processa os comandos recebidos do canal userInputChan
 func (c *Carro) handleUserCommand(command string) {
 	switch command {
@@ -304,6 +336,39 @@ func (c *Carro) handleUserCommand(command string) {
 		fmt.Println("Opção inválida. Tente novamente.")
 	}
 }
+
+
+func readUserInput() {
+	log.Println("[Entrada Usuário] Iniciado.")
+	reader := bufio.NewReader(os.Stdin)
+
+	for {
+		select {
+		case prompt := <-promptChan:
+			fmt.Print(prompt.Pergunta)
+			input, err := reader.ReadString('\n')
+			if err != nil {
+				log.Printf("[Entrada Usuário] Erro ao ler entrada: %v\n", err)
+				prompt.RespostaCh <- ""
+			} else {
+				prompt.RespostaCh <- strings.TrimSpace(input)
+			}
+		default:
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+}
+
+func perguntarUsuario(pergunta string) string {
+	respCh := make(chan string)
+	promptChan <- Prompt{
+		Pergunta:   pergunta,
+		RespostaCh: respCh,
+	}
+	return <-respCh
+}
+
+
 
 func main() {
 	log.Println("[CARRO] Inicializando aplicação...")
@@ -342,18 +407,24 @@ func main() {
 
 	// Iniciar goroutines de processamento e entrada do usuário
 	go processIncomingMqttMessages(&carro) // Goroutine para processar mensagens MQTT do canal
-	go readUserInput(userInputChan)        // Goroutine para ler entrada do usuário
+	go readUserInput()        // Goroutine para ler entrada do usuário
+
+
 	for {
+
 		carro.exibirMenu() // Exibe o menu antes de cada prompt de entrada
-		select {
-		case cmd := <-userInputChan: // Recebe comando do usuário
-			carro.handleUserCommand(cmd)
-			if cmd == "3" { // Se o comando for para sair, o handleUserCommand já enviou para quitChan
-				// Não precisa fazer nada aqui, o quitChan abaixo irá pegar
-			}
-		case <-quitChan: // Recebe sinal de encerramento da aplicação
-			fmt.Println("\n[Main] Sinal de encerramento recebido. Iniciando desligamento...")
-			// Salta para o rótulo de encerramento
+		opcao := strings.TrimSpace(perguntarUsuario("Digite a opção desejada: "))
+		switch opcao {
+		case "1":
+			cidadeDestino := carro.selecionarCidade()
+			carro.solicitarRota(carro.CidadeAtual, cidadeDestino)
+		case "2":
+			log.Println("Fazer alguma coisa")
+		case "3":
+			log.Println("Desconectado")
+			break // Adiciona a quebra do loop
+		default:
+			fmt.Println("Opção inválida. Tente novamente.")
 		}
 	}
 

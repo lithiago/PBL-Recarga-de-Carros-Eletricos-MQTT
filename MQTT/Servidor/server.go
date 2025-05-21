@@ -156,6 +156,15 @@ func (S *Servidor) regitrarHandlersMQTT(){
 	routerServidor := S.Client.Router
 	routerServidor.Register(topics.CarroRequestReserva("+", S.IP, S.Cidade), func(payload []byte) {
 		log.Println("[DEBUG] Carro solicitou reserva")
+		var reserva consts.Reserva
+		if err := json.Unmarshal(payload, &reserva); err != nil {
+			log.Println("Erro ao decodificar mensagem:", err)
+			return
+		}
+		log.Printf("Reserva recebida: %+v\n", reserva)
+		
+
+
 	})
 	routerServidor.Register(topics.CarroRequestCancel("+", S.IP, S.Cidade), func(payload []byte) {
 		log.Println("[DEBUG] Carro cancelou reserva")
@@ -223,10 +232,10 @@ func (S *Servidor) regitrarHandlersMQTT(){
 		log.Println("[DEBUG] JSON final enviado:", string(msg))
 	})
 	routerServidor.Register(topics.CarroSendsRechargeStart("+", S.IP, S.Cidade), func(payload []byte) {
-		log.Println("[DEBUG] Carro enviou status")
+		log.Println("[DEBUG] Carro informou inicio de recarga")
 	})
 	routerServidor.Register(topics.CarroSendsRechargeFinish("+", S.IP, S.Cidade), func(payload []byte) {
-		log.Println("[DEBUG] Carro enviou status")
+		log.Println("[DEBUG] Carro informou fim de recarga")
 	})
 
 }
