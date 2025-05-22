@@ -125,4 +125,4 @@ func GetLocalIP() (string, error) {
 	return localAddr.IP.String(), nil
 }
 
-const Broker = "tcp://172.16.201.2:1845"
+const Broker = "tcp://mosquitto:1845"

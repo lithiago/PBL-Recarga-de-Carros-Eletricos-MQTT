@@ -97,10 +97,15 @@ func (c *Carro) SolicitarReserva(rotas map[string][]consts.Parada, cidadeDestino
 	c.publicarAoServidor(ConteudoJSON, topic)
 }
 
-func (c *Carro) CancelarReserva(postoID, serverID, cidade string) {
-	topic := topics.CarroRequestCancel(c.ID, cidade, serverID)
+func (c *Carro) CancelarReserva() {
+	topic := topics.CarroSendsRechargeFinish(c.ID)
 	log.Println("[CARRO] Publicando cancelamento de reserva no tópico: ", topic)
-	c.Clientemqtt.Publish(topic, []byte(postoID))
+	msg := map[string]string{
+		"IDCarro": c.ID,
+		"Msg":     "Cancelar Reserva",
+	}
+	msgJSON, _ := json.Marshal(msg)
+	c.Clientemqtt.Publish(topic, msgJSON)
 }
 
 func serializarMensagem(msg consts.Mensagem) []byte {
@@ -176,9 +181,10 @@ func (c *Carro) exibirMenu() {
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Printf("  🆔 Carro ID: %s \n", c.ID)
 	fmt.Printf("  🔋 Bateria: %.2f%%\n", c.PorcentagemBateria())
-	fmt.Println("  1️⃣  | Solicitar Rota para Destino")
-	fmt.Println("  2️⃣  | Simular Viagem") // Exemplo de nova opção
-	fmt.Println("  3️⃣  | Encerrar Conexão")
+	fmt.Println("  1️⃣  | Solicitar Nova Rota")
+	fmt.Println("  2️⃣  | Cancelar Rota Atual")
+	fmt.Println("  3️⃣  | Finalizar Recarga")
+	fmt.Println("  4️⃣  | Encerrar Conexão")
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 }
 
@@ -257,19 +263,19 @@ func processIncomingMqttMessages(car *Carro) {
 			msgServer := desserializarMensagem(msg.Payload)
 			fmt.Println("Status de Reserva recebido do IP:", msgServer.ID)
 			reserveStatus := make(map[string]string)
-			for k, v := range msgServer.Conteudo{
+			for k, v := range msgServer.Conteudo {
 				bytes, _ := json.Marshal(v)
 				var status string
 				err := json.Unmarshal(bytes, &status)
-				if err != nil{
+				if err != nil {
 					log.Println("Erro ao converter para string")
 				}
-				reserveStatus[k] =  status
+				reserveStatus[k] = status
 			}
-			if reserveStatus["status"] == "OK"{
+			if reserveStatus["status"] == "OK" {
 				log.Println("Reserva bem sucedida")
-				
-			} else if reserveStatus["status"] == "ERRO"{
+
+			} else if reserveStatus["status"] == "ERRO" {
 				log.Println("Erro ao reserver postos.")
 				log.Println("[SOLICITE OUTRA ROTA]")
 				log.Println("Cidade destino: ", msgServer.Origem)
@@ -349,11 +355,19 @@ func (c *Carro) handleUserCommand(command string) {
 		}
 		cidadeDestino := cidades[escolha]
 		c.solicitarRota(c.CidadeAtual, cidadeDestino)
-	case "2": // Simular Viagem (Exemplo de nova opção)
-		fmt.Println("Pensar em algo para colocar aqui")
+	case "2": // Finalizar recarga
+		topic := topics.CarroSendsRechargeFinish(c.ID)
+		msg := map[string]string{
+			"IDCarro": c.ID,
+			"Msg":     "Finalizar Recarga",
+		}
+		msgJson, _ := json.Marshal(msg)
+		c.Clientemqtt.Publish(topic, msgJson)
+		fmt.Println("[CARRO] = RECARGA FINALIZADA")
 		// Aqui você poderia iniciar uma goroutine para simular o movimento do carro, consumo de bateria, etc.
-	case "3": // Encerrar Conexão
-		fmt.Println("Precisa implementar encerramento de conexões")
+	case "3": // Cancelar Reserva
+		c.CancelarReserva()
+	case "4":
 		quitChan <- os.Interrupt // Envia um sinal para o canal de encerramento
 	default:
 		fmt.Println("Opção inválida. Tente novamente.")
@@ -429,8 +443,6 @@ func main() {
 	go processIncomingMqttMessages(&carro) // Goroutine para processar mensagens MQTT do canal
 	go readUserInput()                     // Goroutine para ler entrada do usuário
 
-
-	
 	for {
 
 		carro.exibirMenu() // Exibe o menu antes de cada prompt de entrada
@@ -440,10 +452,19 @@ func main() {
 			cidadeDestino := carro.selecionarCidade()
 			carro.solicitarRota(carro.CidadeAtual, cidadeDestino)
 		case "2":
-			log.Println("Fazer alguma coisa")
+			topic := topics.CarroSendsRechargeFinish(carro.ID)
+			msg := map[string]string{
+				"IDCarro": carro.ID,
+				"Msg":     "Finalizar Recarga",
+			}
+			msgJson, _ := json.Marshal(msg)
+			carro.Clientemqtt.Publish(topic, msgJson)
+			fmt.Println("[CARRO] = RECARGA FINALIZADA")
 		case "3":
 			log.Println("Desconectado")
 			break // Adiciona a quebra do loop
+		case "4":
+			carro.CancelarReserva()
 		default:
 			fmt.Println("Opção inválida. Tente novamente.")
 		}

@@ -12,9 +12,9 @@ func CarroDesconectado(carID string) string {return fmt.Sprintf("car/%s/desconec
 func CarroRequestToServer(carID string, cidade string, TipoDeSolicitacao string) string     { return fmt.Sprintf("car/%s/request/%s/%s", carID, cidade, TipoDeSolicitacao) }
 
 func CarroSendsRechargeStart(carID string, serverID, cidade string) string { return fmt.Sprintf("car/%s/recharge/start/%s", carID, strings.ToLower(cidade)) }
-func CarroSendsRechargeFinish(carID string, serverID, cidade string) string { return fmt.Sprintf("car/%s/recharge/finish/%s", carID, strings.ToLower(cidade)) }
+func CarroSendsRechargeFinish(carID string) string { return fmt.Sprintf("car/%s/recharge/finish/", carID) }
 func CarroRequestStatus(carID string, serverID string, cidade string) string      { return fmt.Sprintf("car/%s/request/status/%s/%s", carID, cidade, serverID) }
-func CarroRequestCancel(carID string, cidade string, serverID string ) string      { return fmt.Sprintf("car/%s/request/cancel/%s/%s", carID, cidade, carID) }
+func CarroRequestCancel(carID string) string      { return fmt.Sprintf("car/%s/request/cancel//", carID) }
 
 
 // Servidor → Carro

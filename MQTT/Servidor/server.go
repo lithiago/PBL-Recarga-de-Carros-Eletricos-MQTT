@@ -46,9 +46,9 @@ var cidadeConfig = map[string]struct {
 	Container string
 	Porta     string
 }{
-	"FSA": {"172.16.201.3", "8080"},
-	"ILH": {"171.16.201.16", "8081"},
-	"SSA": {"172.16.201.2", "8082"},
+	"FSA": {"feiradesantana", "8080"},
+	"ILH": {"ilheus", "8081"},
+	"SSA": {"salvador", "8082"},
 }
 
 // A variavel solicitação é para concatenar a string ao topico evitando multiplas condições
@@ -62,9 +62,10 @@ func (s *Servidor) AssinarEventosDoCarro() {
 	topicsToSubscribe := []string{
 		topics.CarroRequestReserva("+", s.IP, s.Cidade),
 		topics.CarroRequestStatus("+", s.IP, s.Cidade),
-		topics.CarroRequestCancel("+", s.IP, s.Cidade),
+		topics.CarroRequestCancel("+"),
 		topics.CarroRequestRotas("+", s.Cidade),
 		topics.CarroDesconectado("+"),
+		topics.CarroSendsRechargeFinish("+"),
 	}
 	for _, topic := range topicsToSubscribe {
 		log.Printf("[SERVIDOR] Assinando tópico: %s", topic)
@@ -192,7 +193,7 @@ func (S *Servidor) regitrarHandlersMQTT() {
 		serverURLs := make(map[string]string)
 		for cidade, configs := range cidadeConfig {
 			// parada agora tem a cidade na struct
-			serverURLs[cidade] = fmt.Sprintf("http://%s:%s", configs.Container, configs.Porta)
+			serverURLs[cidade] = fmt.Sprintf("http://servidor-%s:%s", configs.Container, configs.Porta)
 		}
 
 		var participantes []consts.Participante2PC
@@ -251,8 +252,17 @@ func (S *Servidor) regitrarHandlersMQTT() {
 		log.Println("Publicou no topico: ", topic)
 
 	})
-	routerServidor.Register(topics.CarroRequestCancel("+", S.IP, S.Cidade), func(payload []byte) {
+	routerServidor.Register(topics.CarroRequestCancel("+"), func(payload []byte) {
 		log.Println("[DEBUG] Carro cancelou reserva")
+		var msg map[string]string
+		if err := json.Unmarshal(payload, &msg); err != nil {
+			fmt.Printf("[ERRO] Erro ao decodificar mensagem: %v\n", err)
+			// Retorna uma MsgServer vazia ou com erro sinalizado
+			return 
+		}
+		idCarro := msg["IDCarro"]
+		log.Printf("MensageM: %f", msg["Msg"])
+		S.processCarroDisconnected(idCarro)
 
 	})
 	routerServidor.Register(topics.CarroRequestRotas("+", S.Cidade), func(payload []byte) {
@@ -275,7 +285,7 @@ func (S *Servidor) regitrarHandlersMQTT() {
 						log.Printf("Configuração não encontrada para a cidade: %s", cidade)
 						continue
 					}
-					url := "http://" + config.Container + ":" + config.Porta
+					url := "http://servidor-" + config.Container + ":" + config.Porta
 					log.Printf("URL: %s", url)
 					postos, err := api.ObterPostosDeOutroServidor(url) // obter a partir do http
 					if err != nil {
@@ -317,11 +327,17 @@ func (S *Servidor) regitrarHandlersMQTT() {
 		S.Client.Publish(topic, msg)
 		log.Println("[DEBUG] JSON final enviado:", string(msg))
 	})
-	routerServidor.Register(topics.CarroSendsRechargeStart("+", S.IP, S.Cidade), func(payload []byte) {
-		log.Println("[DEBUG] Carro informou inicio de recarga")
-	})
-	routerServidor.Register(topics.CarroSendsRechargeFinish("+", S.IP, S.Cidade), func(payload []byte) {
+	routerServidor.Register(topics.CarroSendsRechargeFinish("+"), func(payload []byte) {
 		log.Println("[DEBUG] Carro informou fim de recarga")
+		var msg map[string]string
+		if err := json.Unmarshal(payload, &msg); err != nil {
+			fmt.Printf("[ERRO] Erro ao decodificar mensagem: %v\n", err)
+			// Retorna uma MsgServer vazia ou com erro sinalizado
+			return 
+		}
+		idCarro := msg["IDCarro"]
+		log.Printf("MensageM: %f", msg["Msg"])
+		S.processCarroDisconnected(idCarro)
 	})
 	routerServidor.Register(topics.CarroDesconectado("+"), func(payload []byte){
 		S.handleCarroDisconnectedMQTT(payload)

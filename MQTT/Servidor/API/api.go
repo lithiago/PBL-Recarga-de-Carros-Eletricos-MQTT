@@ -288,6 +288,26 @@ func ServerAPICommunication(arquivoPontos string) {
 		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Posto liberado."})
 	})
 
+	r.POST("/reserva", func(c *gin.Context) {
+		var req struct {
+			Carro         consts.Carro             `json:"carro"`
+			Participantes []consts.Participante2PC `json:"participantes"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos"})
+			return
+		}
+		log.Println("[API] Iniciando 2PC para adicionar carro aos postos...")
+		err := TwoPhaseCommit(req.Participantes, req.Carro)
+		if err != nil {
+			log.Printf("[API] 2PC falhou: %v", err)
+			c.JSON(http.StatusConflict, gin.H{"result": "2PC falhou", "error": err.Error()})
+		} else {
+			log.Println("[API] 2PC concluído com sucesso!")
+			c.JSON(http.StatusOK, gin.H{"result": "2PC concluído com sucesso!"})
+		}
+	})
+
 	// Inicia o servidor HTTP na porta 8080
 	porta := os.Getenv("PORTA")
 	if porta == "" {
