@@ -53,6 +53,7 @@ type Parada struct {
 	IDPosto   string  `json:"idposto"`
 	X         float64 `json:"x"`
 	Y         float64 `json:"y"`
+	Cidade string `json:"cidade"`
 }
 
 type DadosRotas struct {
@@ -72,7 +73,7 @@ type Coordenadas struct {
 }
 
 type Reserva struct{
-	CarroID string `json:"carroid"`
+	Carro Carro `json:"carro"`
 	Paradas []Parada `json:"paradas"`
 }
 

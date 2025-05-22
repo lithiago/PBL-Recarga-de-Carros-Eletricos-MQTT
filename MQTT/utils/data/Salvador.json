@@ -1,60 +1,76 @@
 {
-    "SSA": [
+  "SSA": [
+    {
+      "id": "SSA01",
+      "nome": "Posto 1 - Salvador",
+      "cidade": "",
+      "x": 152,
+      "y": 249,
+      "custokw": 0.91,
+      "fila": [
         {
-            "id": "SSA01",
-            "nome": "Posto 1 - Salvador",
-            "x": 152,
-            "y": 249,
-            "custoKW": 0.91,
-            "Fila": []
-        },
-        {
-            "id": "SSA02",
-            "nome": "Posto 2 - Salvador",
-            "x": 160,
-            "y": 249,
-            "custoKW": 0.95,
-            "Fila": []
-        },
-        {
-            "id": "SSA03",
-            "nome": "Posto 3 - Salvador",
-            "x": 155,
-            "y": 245,
-            "custoKW": 0.96,
-            "Fila": []
-        },
-        {
-            "id": "SSA04",
-            "nome": "Posto 4 - Salvador",
-            "x": 170,
-            "y": 230,
-            "custoKW": 0.97,
-            "Fila": []
-        },
-        {
-            "id": "SSA05",
-            "nome": "Posto 5 - Salvador",
-            "x": 158,
-            "y": 255,
-            "custoKW": 0.98,
-            "Fila": []
-        },
-        {
-            "id": "SSA06",
-            "nome": "Posto 6 - Salvador",
-            "x": 165,
-            "y": 240,
-            "custoKW": 0.99,
-            "Fila": []
-        },
-        {
-            "id": "SSA07",
-            "nome": "Posto 7 - Salvador",
-            "x": 150,
-            "y": 260,
-            "custoKW": 1.00,
-            "Fila": []
+          "id": "172.24.0.7",
+          "bateria": 60,
+          "x": 332.5584546533886,
+          "y": 123.34789238791721,
+          "capacidadebateria": 60,
+          "consumobateria": 0.2
         }
-    ]
+      ]
+    },
+    {
+      "id": "SSA02",
+      "nome": "Posto 2 - Salvador",
+      "cidade": "",
+      "x": 160,
+      "y": 249,
+      "custokw": 0.95,
+      "fila": []
+    },
+    {
+      "id": "SSA03",
+      "nome": "Posto 3 - Salvador",
+      "cidade": "",
+      "x": 155,
+      "y": 245,
+      "custokw": 0.96,
+      "fila": []
+    },
+    {
+      "id": "SSA04",
+      "nome": "Posto 4 - Salvador",
+      "cidade": "",
+      "x": 170,
+      "y": 230,
+      "custokw": 0.97,
+      "fila": []
+    },
+    {
+      "id": "SSA05",
+      "nome": "Posto 5 - Salvador",
+      "cidade": "",
+      "x": 158,
+      "y": 255,
+      "custokw": 0.98,
+      "fila": []
+    },
+    {
+      "id": "SSA06",
+      "nome": "Posto 6 - Salvador",
+      "cidade": "",
+      "x": 165,
+      "y": 240,
+      "custokw": 0.99,
+      "fila": []
+    },
+    {
+      "id": "SSA07",
+      "nome": "Posto 7 - Salvador",
+      "cidade": "",
+      "x": 150,
+      "y": 260,
+      "custokw": 1,
+      "fila": []
+    }
+  ]
 }

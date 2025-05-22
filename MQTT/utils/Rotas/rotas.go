@@ -45,14 +45,16 @@ func GerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coo
 			// Caso não seja alcançável, procurar melhor posto dentro da autonomia
 			var melhorPosto *consts.Posto
 			var menorDistancia float64 = 1e9
+			var cidadeDaParada string
 
-			for _, listaPostos := range todosOsPostos {
+			for cidade, listaPostos := range todosOsPostos {
 				for _, posto := range listaPostos {
 					distanciaAtePosto := consts.CalcularDistancia(posicaoAtual, consts.Coordenadas{X: posto.X, Y: posto.Y})
 					if distanciaAtePosto <= autonomia && distanciaAtePosto < menorDistancia {
 						menorDistancia = distanciaAtePosto
 						tmp := posto
 						melhorPosto = &tmp
+						cidadeDaParada = cidade
 					}
 				}
 			}
@@ -75,13 +77,14 @@ func GerarRotas(carro consts.Carro, rota []string, cidades map[string]consts.Coo
 				IDPosto:   melhorPosto.Id,
 				X:         melhorPosto.X,
 				Y:         melhorPosto.Y,
+				Cidade: cidadeDaParada,
 			})
 		}
 	}
 
 	log.Printf("🚗 Paradas planejadas (%d):", len(paradas))
 	for i, p := range paradas {
-		log.Printf("  [%d] %s (%s) - X: %.2f, Y: %.2f", i+1, p.NomePosto, p.IDPosto, p.X, p.Y)
+		log.Printf("  [%d] %s (%s) - X: %.2f, Y: %.2f, Cidade: %s", i+1, p.NomePosto, p.IDPosto, p.X, p.Y, p.Cidade)
 	}
 
 	return paradas

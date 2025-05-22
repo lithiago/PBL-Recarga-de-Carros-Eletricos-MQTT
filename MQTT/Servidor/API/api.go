@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -249,7 +250,7 @@ func ObterPostosDeOutroServidor(url string) ([]*consts.Posto, error) {
 
 }
 
-func TwoPhaseCommit(participantes []Participante2PC, carro consts.Carro) error {
+func TwoPhaseCommit(participantes []consts.Participante2PC, carro consts.Carro) error {
 	payloadTemplate := `{"posto_id":"%s","carro":%s}`
 
 	// Fase 1: Prepare

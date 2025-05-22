@@ -28,7 +28,7 @@ var (
 	incomingMqttChan = make(chan MqttMessage, 100) // Canal para mensagens MQTT recebidas, com buffer
 	userInputChan    = make(chan string)           // Canal para entrada do usuário
 	quitChan         = make(chan os.Signal, 1)     // Canal para sinal de encerramento
-	promptChan  = make(chan Prompt)
+	promptChan       = make(chan Prompt)
 )
 
 type Prompt struct {
@@ -61,20 +61,28 @@ func (c *Carro) SolicitarReserva(rotas map[string][]consts.Parada, cidadeDestino
 	}
 
 	input := perguntarUsuario("Digite o número da rota desejada: ")
-	escolha, err := strconv.Atoi(input)
+	escolha, _ := strconv.Atoi(input)
 
 	if escolha < 0 || escolha >= len(rotasIndexadas) {
 		fmt.Println("❌ Escolha inválida.")
 		return
-		
+
 	}
 
 	nomeRotaEscolhida := rotasIndexadas[escolha]
 	fmt.Printf("Você escolheu a rota: %s\n", nomeRotaEscolhida)
 	paradasEscolhidas := rotas[nomeRotaEscolhida]
 	// Enviar a rota escolhida para o servidor
+
 	reserva := consts.Reserva{
-		CarroID: c.ID,
+		Carro: consts.Carro{
+			ID:                c.ID,
+			Bateria:           c.Bateria,
+			X:                 c.X,
+			Y:                 c.Y,
+			CapacidadeBateria: c.CapacidadeBateria,
+			Consumobateria:    c.Consumobateria,
+		},
 		Paradas: paradasEscolhidas,
 	}
 
@@ -83,8 +91,6 @@ func (c *Carro) SolicitarReserva(rotas map[string][]consts.Parada, cidadeDestino
 		log.Printf("[ERRO] Falha ao serializar mensagem de reserva: %v\n", err)
 		return
 	}
-
-
 
 	topic := topics.CarroRequestReserva(c.ID, serverID, cidadeDestino)
 	log.Println("[CARRO] Publicando solicitação de reserva no tópico: ", topic)
@@ -194,6 +200,14 @@ func setupMqttHandlers(router *router.Router, carID string) {
 			Payload: payload,
 		}
 	})
+
+	router.Register(topics.ServerReserveStatus("+", carID), func(payload []byte) {
+		log.Println("[CARRO] [Callback MQTT] recebido status de reserva do servido. Envinado para canal...")
+		incomingMqttChan <- MqttMessage{
+			Topic:   topics.ServerReserveStatus("+", carID),
+			Payload: payload,
+		}
+	})
 	// Adicione outros handlers conforme necessário
 }
 
@@ -239,31 +253,15 @@ func processIncomingMqttMessages(car *Carro) {
 			car.SolicitarReserva(paradasMap, msgServer.Origem, msgServer.ID)
 
 			//Adicione lógica para exibir visualmente ou armazenar rotas
-		} else if strings.HasPrefix(msg.Topic, topics.CarroRequestReserva(car.ID, "", "")) {
-			log.Println("[CARRO] [Callback MQTT] Reserva recebida.")
+		} else if strings.HasPrefix(msg.Topic, topics.ServerReserveStatus("+", car.ID)) {
+			msgServer := desserializarMensagem(msg.Payload)
+			fmt.Println("Status de Reserva recebido do IP:", msgServer.ID)
 		} else {
 			log.Printf("[Processador MQTT] Tópico desconhecido ou não tratado especificamente: %s\n", msg.Topic)
 		}
 	}
 	log.Println("[Processador MQTT] Encerrando.")
 }
-
-// // readUserInput lê a entrada do terminal e envia para o canal userInputChan
-// func readUserInput(inputChan chan<- string) {
-// 	log.Println("[Entrada Usuário] Iniciado. Digite '3' para sair.")
-// 	for {
-// 		// Não exibir o menu aqui, pois é responsabilidade do loop principal
-// 		// fmt.Print(">> ") // Não é necessário aqui, pois exibirMenu já faz
-// 		var input string
-// 		_, err := fmt.Scanln(&input) // Lê a linha completa
-// 		if err != nil {
-// 			log.Printf("[Entrada Usuário] Erro ao ler entrada: %v\n", err)
-// 			// Pode querer enviar um sinal de erro ou fechar o canal aqui
-// 			return
-// 		}
-// 		inputChan <- strings.TrimSpace(input) // Envia a entrada para o canal
-// 	}
-// }
 
 func (c *Carro) AssinarRespostaServidor() {
 	topicResp := topics.ServerResponseToCar(c.ID)
@@ -273,10 +271,13 @@ func (c *Carro) AssinarRespostaServidor() {
 	topicRoutes := topics.ServerResponteRoutes(c.ID, "+")
 	c.Clientemqtt.Subscribe(topicRoutes)
 	log.Printf("[CARRO] Subscrito ao tópico: %s\n", topicRoutes)
+
+	topicReserveStatus := topics.ServerReserveStatus("+", c.ID)
+	c.Clientemqtt.Subscribe(topicReserveStatus)
+	log.Printf("[CARRO] Subscrito ao tópico: %s\n", topicReserveStatus)
 }
 
-
-func (c *Carro) selecionarCidade() string{
+func (c *Carro) selecionarCidade() string {
 	// Remove a cidade atual da lista de cidades disponíveis
 	cidades := make([]string, 0, len(consts.CidadesArray))
 	for _, cidade := range consts.CidadesArray {
@@ -290,7 +291,7 @@ func (c *Carro) selecionarCidade() string{
 	for i, cidade := range cidades {
 		fmt.Printf("  %d - %s\n", i, cidade)
 	}
-	
+
 	input := perguntarUsuario(strings.TrimSpace("Digite a opção para cidade de destino: "))
 	escolha, _ := strconv.Atoi(input)
 	if escolha < 0 || escolha >= len(cidades) {
@@ -300,6 +301,7 @@ func (c *Carro) selecionarCidade() string{
 	cidadeDestino := cidades[escolha]
 	return cidadeDestino
 }
+
 // handleUserCommand processa os comandos recebidos do canal userInputChan
 func (c *Carro) handleUserCommand(command string) {
 	switch command {
@@ -337,7 +339,6 @@ func (c *Carro) handleUserCommand(command string) {
 	}
 }
 
-
 func readUserInput() {
 	log.Println("[Entrada Usuário] Iniciado.")
 	reader := bufio.NewReader(os.Stdin)
@@ -367,8 +368,6 @@ func perguntarUsuario(pergunta string) string {
 	}
 	return <-respCh
 }
-
-
 
 func main() {
 	log.Println("[CARRO] Inicializando aplicação...")
@@ -407,8 +406,7 @@ func main() {
 
 	// Iniciar goroutines de processamento e entrada do usuário
 	go processIncomingMqttMessages(&carro) // Goroutine para processar mensagens MQTT do canal
-	go readUserInput()        // Goroutine para ler entrada do usuário
-
+	go readUserInput()                     // Goroutine para ler entrada do usuário
 
 	for {
 

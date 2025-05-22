@@ -20,6 +20,7 @@ func CarroRequestCancel(carID string, cidade string, serverID string ) string   
 // Servidor → Carro
 func ServerResponseToCar(carID string) string { return fmt.Sprintf("server/response/%s", carID) }
 func ServerNotifyCar(serverID, carID string) string     { return fmt.Sprintf("server/%s/notify/%s", serverID, carID) }
+func ServerReserveStatus(serverID, carID string) string     { return fmt.Sprintf("server/%s/ReserveStatus/%s", serverID, carID) }
 func ServerResponteRoutes(carID string, cidade string) string { return fmt.Sprintf("server/%s/rotas/%s", carID, strings.ToLower(cidade))}
 
 // Servidor → Posto

@@ -1,60 +1,94 @@
 {
-    "FSA":[
+  "FSA": [
+    {
+      "id": "FSA01",
+      "nome": "Posto 1 - FeiraDeSantana",
+      "cidade": "",
+      "x": 97,
+      "y": 204,
+      "custokw": 0.94,
+      "fila": [
         {
-        "id": "FSA01",
-        "nome": "Posto 1 - FeiraDeSantana",
-        "x": 97,
-        "y": 204,
-        "custoKW": 0.94,
-        "Fila": []
-        },
-        {
-        "id": "FSA02",
-        "nome": "Posto 2 - FeiraDeSantana",
-        "x": 105,
-        "y": 195,
-        "custoKW": 0.92,
-        "Fila": []
-        },
-        {
-        "id": "FSA03",
-        "nome": "Posto 3 - FeiraDeSantana",
-        "x": 110,
-        "y": 210,
-        "custoKW": 0.92,
-        "Fila": []
-        },
-        {
-            "id": "FSA04",
-            "nome": "Posto 4 - FeiraDeSantana",
-            "x": 90,
-            "y": 185,
-            "custoKW": 0.92,
-            "Fila": []
-        },
-        {
-            "id": "FSA05",
-            "nome": "Posto 5 - FeiraDeSantana",
-            "x": 100,
-            "y": 220,
-            "custoKW": 0.92,
-            "Fila": []
-        },
-        {
-            "id": "FSA06",
-            "nome": "Posto 6 - FeiraDeSantana",
-            "x": 95,
-            "y": 210,
-            "custoKW": 0.92,
-            "Fila": []
-        },
-        {
-            "id": "FSA07",
-            "nome": "Posto 7 - FeiraDeSantana",
-            "x": 110,
-            "y": 200,
-            "custoKW": 0.92,
-            "Fila": []
+          "id": "172.24.0.7",
+          "bateria": 60,
+          "x": 212.77070394789607,
+          "y": 60.967807606258035,
+          "capacidadebateria": 60,
+          "consumobateria": 0.2
         }
-    ]
+      ]
+    },
+    {
+      "id": "FSA02",
+      "nome": "Posto 2 - FeiraDeSantana",
+      "cidade": "",
+      "x": 105,
+      "y": 195,
+      "custokw": 0.92,
+      "fila": [
+        {
+          "id": "172.24.0.7",
+          "bateria": 60,
+          "x": 204.61887716668653,
+          "y": 180.51482855063512,
+          "capacidadebateria": 60,
+          "consumobateria": 0.2
+        }
+      ]
+    },
+    {
+      "id": "FSA03",
+      "nome": "Posto 3 - FeiraDeSantana",
+      "cidade": "",
+      "x": 110,
+      "y": 210,
+      "custokw": 0.92,
+      "fila": []
+    },
+    {
+      "id": "FSA04",
+      "nome": "Posto 4 - FeiraDeSantana",
+      "cidade": "",
+      "x": 90,
+      "y": 185,
+      "custokw": 0.92,
+      "fila": []
+    },
+    {
+      "id": "FSA05",
+      "nome": "Posto 5 - FeiraDeSantana",
+      "cidade": "",
+      "x": 100,
+      "y": 220,
+      "custokw": 0.92,
+      "fila": []
+    },
+    {
+      "id": "FSA06",
+      "nome": "Posto 6 - FeiraDeSantana",
+      "cidade": "",
+      "x": 95,
+      "y": 210,
+      "custokw": 0.92,
+      "fila": [
+        {
+          "id": "172.24.0.7",
+          "bateria": 60,
+          "x": 204.61887716668653,
+          "y": 180.51482855063512,
+          "capacidadebateria": 60,
+          "consumobateria": 0.2
+        }
+      ]
+    },
+    {
+      "id": "FSA07",
+      "nome": "Posto 7 - FeiraDeSantana",
+      "cidade": "",
+      "x": 110,
+      "y": 200,
+      "custokw": 0.92,
+      "fila": []
+    }
+  ]
 }

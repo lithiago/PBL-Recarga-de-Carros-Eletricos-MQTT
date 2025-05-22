@@ -1,20 +1,18 @@
 package main
 
 import (
+	api "MQTT/Servidor/API"
 	consts "MQTT/utils/Constantes"
 	rotaslib "MQTT/utils/Rotas"
 	topics "MQTT/utils/Topicos"
 	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
 	router "MQTT/utils/mqttLib/Router"
 	storage "MQTT/utils/storage"
-	api "MQTT/Servidor/API"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"time"
-
-
 )
 
 type Servidor struct {
@@ -35,8 +33,8 @@ var cidadeConfig = map[string]struct {
 	Porta     string
 }{
 	"FSA": {"feiradesantana", "8080"},
-	"SSA":       {"salvador", "8082"},
-	"ILH":         {"ilheus", "8081"},
+	"SSA": {"salvador", "8082"},
+	"ILH": {"ilheus", "8081"},
 }
 
 // A variavel solicitação é para concatenar a string ao topico evitando multiplas condições
@@ -58,8 +56,6 @@ func (s *Servidor) AssinarEventosDoCarro() {
 		s.Client.Subscribe(topic)
 	}
 }
-
-
 
 func (s *Servidor) adicionarAoArquivo(path string, novoDado interface{}) error {
 	// Ler conteúdo atual do JSON
@@ -150,9 +146,16 @@ func inicializarServidor() Servidor {
 	}
 }
 
+func serializarMensagem(msg consts.Mensagem) []byte {
+	msgJSON, err := json.Marshal(msg)
+	if err != nil {
+		log.Println("Erro ao codificar mensagem:", err)
+		return nil
+	}
+	return msgJSON
+}
 
-
-func (S *Servidor) regitrarHandlersMQTT(){
+func (S *Servidor) regitrarHandlersMQTT() {
 	routerServidor := S.Client.Router
 	routerServidor.Register(topics.CarroRequestReserva("+", S.IP, S.Cidade), func(payload []byte) {
 		log.Println("[DEBUG] Carro solicitou reserva")
@@ -162,9 +165,61 @@ func (S *Servidor) regitrarHandlersMQTT(){
 			return
 		}
 		log.Printf("Reserva recebida: %+v\n", reserva)
-		
-		// MONTAR URL QUE VAI FAZER PARTE DE PARTICIPANTE2PC EX: "http//:servidor-ip/config.container/portas"
 
+		// MONTAR URL QUE VAI FAZER PARTE DE PARTICIPANTE2PC EX: "http//:servidor-ip/config.container/portas"
+		// Aqui eu tenho que montar um slice dos participantes do 2PC. Cada posto é gerenciado por um servidor especifico.
+		// Ex de um PARTICIPANTE2PC a reserva vai passar as cidades que estão presentes nas paradas em postos da rota selecionada
+		// Desse modo eu preciso iterar pelo slice de paradas recebido? E então montar as urls e começar a gerar o participante2PC?
+		serverURLs := make(map[string]string)
+		for cidade, configs := range cidadeConfig {
+			// parada agora tem a cidade na struct
+			serverURLs[cidade] = fmt.Sprintf("http://servidor-%s:%s", configs.Container, configs.Porta)
+		}
+
+		var participantes []consts.Participante2PC
+
+		// Itera sobre as paradas da reserva que já contêm as informações necessárias
+		for _, parada := range reserva.Paradas {
+			if serverURL, ok := serverURLs[parada.Cidade]; ok {
+				participantes = append(participantes, consts.Participante2PC{
+					URL:     serverURL,
+					PostoID: parada.IDPosto,
+				})
+			} else {
+				log.Printf("[ERRO] URL do servidor para a cidade '%s' não encontrada na configuração. Abortando 2PC.\n", parada.Cidade)
+				// Enviar uma resposta de erro para o carro aqui.
+				return
+			}
+		}
+
+		// Executa o algoritmo Two-Phase Commit
+		topic := topics.ServerReserveStatus(S.IP, reserva.Carro.ID)
+
+		if err := api.TwoPhaseCommit(participantes, reserva.Carro); err != nil {
+			log.Printf("[ERRO] Two-Phase Commit falhou: %v\n", err)
+			// Lidar com a falha (notificar o carro, etc.)
+			msg := consts.Mensagem{
+				Conteudo: map[string]interface{}{
+					"status": "ERRO",
+				},
+				Origem: S.Cidade,
+				ID:     S.IP,
+			}
+			S.Client.Publish(topic, serializarMensagem(msg))
+		} else {
+			log.Println("[INFO] Two-Phase Commit concluído com sucesso!")
+			// Lidar com o sucesso (notificar o carro, etc.)
+
+			msg := consts.Mensagem{
+				Conteudo: map[string]interface{}{
+					"status": "OK",
+				},
+				Origem: S.Cidade,
+				ID:     S.IP,
+			}
+			S.Client.Publish(topic, serializarMensagem(msg))
+		}
+		log.Println("Publicou no topico: ", topic)
 
 	})
 	routerServidor.Register(topics.CarroRequestCancel("+", S.IP, S.Cidade), func(payload []byte) {
@@ -208,7 +263,7 @@ func (S *Servidor) regitrarHandlersMQTT(){
 
 			log.Println("Checando Paradas para a Rota: ", rota)
 			paradasArray := rotaslib.GerarRotas(conteudoMsg.CarroMQTT, rota, dadosRotas.Cidades, mapaCompleto)
-			if len(paradasArray) != 0{
+			if len(paradasArray) != 0 {
 				paradas[nome] = paradasArray
 			} else {
 				log.Printf("⚠️  Rota %s descartada (nenhuma parada válida encontrada).", nome)
@@ -218,12 +273,12 @@ func (S *Servidor) regitrarHandlersMQTT(){
 		}
 
 		mapInterface := make(map[string]interface{})
-		for nome, slice := range paradas{
+		for nome, slice := range paradas {
 			mapInterface[nome] = slice
 		}
 
 		msg, err := json.Marshal((consts.Mensagem{ID: S.IP, Origem: S.Cidade, Conteudo: mapInterface}))
-		if err != nil{
+		if err != nil {
 			log.Println("Erro ao codificar mensagem:", err)
 			return
 		}
