@@ -46,9 +46,9 @@ var cidadeConfig = map[string]struct {
 	Container string
 	Porta     string
 }{
-	"FSA": {"feiradesantana", "8080"},
-	"SSA": {"salvador", "8082"},
-	"ILH": {"ilheus", "8081"},
+	"FSA": {"172.16.201.3", "8080"},
+	"ILH": {"171.16.201.16", "8081"},
+	"SSA": {"172.16.201.2", "8082"},
 }
 
 // A variavel solicitação é para concatenar a string ao topico evitando multiplas condições
@@ -192,7 +192,7 @@ func (S *Servidor) regitrarHandlersMQTT() {
 		serverURLs := make(map[string]string)
 		for cidade, configs := range cidadeConfig {
 			// parada agora tem a cidade na struct
-			serverURLs[cidade] = fmt.Sprintf("http://servidor-%s:%s", configs.Container, configs.Porta)
+			serverURLs[cidade] = fmt.Sprintf("http://%s:%s", configs.Container, configs.Porta)
 		}
 
 		var participantes []consts.Participante2PC
@@ -253,7 +253,7 @@ func (S *Servidor) regitrarHandlersMQTT() {
 	})
 	routerServidor.Register(topics.CarroRequestCancel("+", S.IP, S.Cidade), func(payload []byte) {
 		log.Println("[DEBUG] Carro cancelou reserva")
-		
+
 	})
 	routerServidor.Register(topics.CarroRequestRotas("+", S.Cidade), func(payload []byte) {
 		var conteudoMsg consts.Trajeto
@@ -275,7 +275,7 @@ func (S *Servidor) regitrarHandlersMQTT() {
 						log.Printf("Configuração não encontrada para a cidade: %s", cidade)
 						continue
 					}
-					url := "http://servidor-" + config.Container + ":" + config.Porta
+					url := "http://" + config.Container + ":" + config.Porta
 					log.Printf("URL: %s", url)
 					postos, err := api.ObterPostosDeOutroServidor(url) // obter a partir do http
 					if err != nil {
