@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -209,6 +210,26 @@ func ServerAPICommunication(arquivoPontos string) {
 		c.JSON(http.StatusOK, gin.H{"result": "aborted"})
 	})
 
+	r.POST("/reserva", func(c *gin.Context) {
+		var req struct {
+			Carro         consts.Carro             `json:"carro"`
+			Participantes []consts.Participante2PC `json:"participantes"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Dados inválidos"})
+			return
+		}
+		log.Println("[API] Iniciando 2PC para adicionar carro aos postos...")
+		err := TwoPhaseCommit(req.Participantes, req.Carro)
+		if err != nil {
+			log.Printf("[API] 2PC falhou: %v", err)
+			c.JSON(http.StatusConflict, gin.H{"result": "2PC falhou", "error": err.Error()})
+		} else {
+			log.Println("[API] 2PC concluído com sucesso!")
+			c.JSON(http.StatusOK, gin.H{"result": "2PC concluído com sucesso!"})
+		}
+	})
+
 	// Inicia o servidor HTTP na porta 8080
 	porta := os.Getenv("PORTA")
 	if porta == "" {
@@ -216,7 +237,6 @@ func ServerAPICommunication(arquivoPontos string) {
 	}
 	r.Run(":" + porta)
 }
-
 
 func ObterPostosDeOutroServidor(url string) ([]*consts.Posto, error) {
 	//log.Printf("[SERVIDOR] Enviando requisição para %s/postos", url)
@@ -249,7 +269,7 @@ func ObterPostosDeOutroServidor(url string) ([]*consts.Posto, error) {
 
 }
 
-func TwoPhaseCommit(participantes []Participante2PC, carro consts.Carro) error {
+func TwoPhaseCommit(participantes []consts.Participante2PC, carro consts.Carro) error {
 	payloadTemplate := `{"posto_id":"%s","carro":%s}`
 
 	// Fase 1: Prepare
@@ -292,5 +312,3 @@ func TwoPhaseCommit(participantes []Participante2PC, carro consts.Carro) error {
 	log.Println("[2PC] Abort enviado para todos os participantes")
 	return fmt.Errorf("2PC abortado por algum participante")
 }
-
-

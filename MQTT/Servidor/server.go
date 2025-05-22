@@ -1,20 +1,18 @@
 package main
 
 import (
+	api "MQTT/Servidor/API"
 	consts "MQTT/utils/Constantes"
 	rotaslib "MQTT/utils/Rotas"
 	topics "MQTT/utils/Topicos"
 	clientemqtt "MQTT/utils/mqttLib/ClienteMQTT"
 	router "MQTT/utils/mqttLib/Router"
 	storage "MQTT/utils/storage"
-	api "MQTT/Servidor/API"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"time"
-
-
 )
 
 type Servidor struct {
@@ -35,8 +33,8 @@ var cidadeConfig = map[string]struct {
 	Porta     string
 }{
 	"FSA": {"feiradesantana", "8080"},
-	"SSA":       {"salvador", "8082"},
-	"ILH":         {"ilheus", "8081"},
+	"SSA": {"salvador", "8082"},
+	"ILH": {"ilheus", "8081"},
 }
 
 // A variavel solicitação é para concatenar a string ao topico evitando multiplas condições
@@ -58,8 +56,6 @@ func (s *Servidor) AssinarEventosDoCarro() {
 		s.Client.Subscribe(topic)
 	}
 }
-
-
 
 func (s *Servidor) adicionarAoArquivo(path string, novoDado interface{}) error {
 	// Ler conteúdo atual do JSON
@@ -150,9 +146,7 @@ func inicializarServidor() Servidor {
 	}
 }
 
-
-
-func (S *Servidor) regitrarHandlersMQTT(){
+func (S *Servidor) regitrarHandlersMQTT() {
 	routerServidor := S.Client.Router
 	routerServidor.Register(topics.CarroRequestReserva("+", S.IP, S.Cidade), func(payload []byte) {
 		log.Println("[DEBUG] Carro solicitou reserva")
@@ -162,9 +156,8 @@ func (S *Servidor) regitrarHandlersMQTT(){
 			return
 		}
 		log.Printf("Reserva recebida: %+v\n", reserva)
-		
-		// MONTAR URL QUE VAI FAZER PARTE DE PARTICIPANTE2PC EX: "http//:servidor-ip/config.container/portas"
 
+		// MONTAR URL QUE VAI FAZER PARTE DE PARTICIPANTE2PC EX: "http//:servidor-ip/config.container/portas"
 
 	})
 	routerServidor.Register(topics.CarroRequestCancel("+", S.IP, S.Cidade), func(payload []byte) {
@@ -208,7 +201,7 @@ func (S *Servidor) regitrarHandlersMQTT(){
 
 			log.Println("Checando Paradas para a Rota: ", rota)
 			paradasArray := rotaslib.GerarRotas(conteudoMsg.CarroMQTT, rota, dadosRotas.Cidades, mapaCompleto)
-			if len(paradasArray) != 0{
+			if len(paradasArray) != 0 {
 				paradas[nome] = paradasArray
 			} else {
 				log.Printf("⚠️  Rota %s descartada (nenhuma parada válida encontrada).", nome)
@@ -218,12 +211,12 @@ func (S *Servidor) regitrarHandlersMQTT(){
 		}
 
 		mapInterface := make(map[string]interface{})
-		for nome, slice := range paradas{
+		for nome, slice := range paradas {
 			mapInterface[nome] = slice
 		}
 
 		msg, err := json.Marshal((consts.Mensagem{ID: S.IP, Origem: S.Cidade, Conteudo: mapInterface}))
-		if err != nil{
+		if err != nil {
 			log.Println("Erro ao codificar mensagem:", err)
 			return
 		}
@@ -250,5 +243,37 @@ func main() {
 	go api.ServerAPICommunication(arquivoPontos)
 	time.Sleep(10 * time.Second)
 	log.Println("[SERVIDOR] Iniciando comunicação MQTT...")
+
+	// testeCarro := consts.Carro{
+	// 	ID:                "carro-teste-234",
+	// 	Bateria:           50.0,
+	// 	X:                 100.0,
+	// 	Y:                 200.0,
+	// 	CapacidadeBateria: 60.0,
+	// 	Consumobateria:    0.2,
+	// }
+	// participantes := []consts.Participante2PC{
+	// 	{
+	// 		PostoID: "FSA02",
+	// 		URL:     "http://servidor-feiradesantana:8080",
+	// 	},
+	// 	{
+	// 		PostoID: "SSA02",
+	// 		URL:     "http://servidor-salvador:8082",
+	// 	},
+	// 	{
+	// 		PostoID: "IL02",
+	// 		URL:     "http://servidor-ilheus:8081",
+	// 	},
+	// }
+
+	// log.Println("[TESTE] Iniciando 2PC para adicionar carro aos postos...")
+	// err := api.TwoPhaseCommit(participantes, testeCarro)
+	// if err != nil {
+	// 	log.Printf("[TESTE] 2PC falhou: %v", err)
+	// } else {
+	// 	log.Println("[TESTE] 2PC concluído com sucesso!")
+	// }
+
 	select {} // mantém o servidor ativo
 }

@@ -3,50 +3,56 @@
     {
       "id": "IL01",
       "nome": "Posto 1 - Ilheus",
+      "cidade": "",
       "x": 299,
       "y": 105,
-      "custoKW": 0.75,
-      "Fila": []
+      "custokw": 0.75,
+      "fila": []
     },
     {
       "id": "IL02",
       "nome": "Posto 2 - Ilheus",
+      "cidade": "",
       "x": 300,
       "y": 95,
-      "custoKW": 1.23,
-      "Fila": []
+      "custokw": 1.23,
+      "fila": []
     },
     {
       "id": "IL03",
       "nome": "Posto 3 - Ilheus",
+      "cidade": "",
       "x": 303,
       "y": 130,
-      "custoKW": 0.53,
-      "Fila": []
+      "custokw": 0.53,
+      "fila": []
     },
     {
       "id": "IL04",
       "nome": "Posto 4 - Ilheus",
+      "cidade": "",
       "x": 280,
       "y": 100,
-      "custoKW": 0.60,
-      "Fila": []
+      "custokw": 0.6,
+      "fila": []
     },
     {
       "id": "IL05",
       "nome": "Posto 5 - Ilheus",
+      "cidade": "",
       "x": 290,
       "y": 110,
-      "custoKW": 0.70,
-      "Fila": []
+      "custokw": 0.7,
+      "fila": []
     },
     {
       "id": "IL06",
       "nome": "Posto 6 - Ilheus",
+      "cidade": "",
       "x": 295,
       "y": 120,
-      "custoKW": 0.80,
-      "Fila": []
+      "custokw": 0.8,
+      "fila": []
     }
   ]
 }
