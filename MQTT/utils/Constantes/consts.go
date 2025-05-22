@@ -12,13 +12,14 @@ import (
 )
 
 type Posto struct {
-	Id      string  `json:"id"`
-	Nome    string  `json:"nome"`
-	Cidade  string  `json:"cidade"`
-	X       float64 `json:"x"`
-	Y       float64 `json:"y"`
-	CustoKW float64 `json:"custokw"` // Adicionado
-	Fila    []Carro `json:"fila"`
+	Id       string  `json:"id"`
+	Nome     string  `json:"nome"`
+	Cidade   string  `json:"cidade"`
+	X        float64 `json:"x"`
+	Y        float64 `json:"y"`
+	CustoKW  float64 `json:"custokw"` // Adicionado
+	Fila     []Carro `json:"fila"`
+	Pendente *Carro  `json: pendente,omitempty"`
 }
 
 type MQTTClient struct {
@@ -38,13 +39,13 @@ type Carro struct {
 
 type Mensagem struct {
 	Conteudo map[string]interface{} `json:"conteudo"`
-	Origem string				 `json:"origem"`
-	ID          string `json:"msg"`
+	Origem   string                 `json:"origem"`
+	ID       string                 `json:"msg"`
 }
 
 type MsgServer struct {
-	ID       string `json:"id"`
-	Cidade   string `json:"cidade"`
+	ID       string          `json:"id"`
+	Cidade   string          `json:"cidade"`
 	Conteudo json.RawMessage `json:"conteudo"`
 }
 
@@ -67,33 +68,29 @@ type Trajeto struct {
 
 type Coordenadas struct {
 	Nome string
-	X float64
-	Y float64
+	X    float64
+	Y    float64
 }
 
-type Reserva struct{
-	CarroID string `json:"carroid"`
+type Reserva struct {
+	CarroID string   `json:"carroid"`
 	Paradas []Parada `json:"paradas"`
 }
-
 
 type Participante2PC struct {
 	PostoID string
 	URL     string
 }
 
-
 var cidades = map[string]struct {
 	x, y, raio float64
 }{
-	"FSA": {x: 97.67, y: 200.0, raio: 225.9},  // Raio aproximado calculado
-	"SSA":         {x: 152.0, y: 249.0, raio: 210.1},
-	"ILH":           {x: 300.67, y: 101.0, raio: 225.9},
+	"FSA": {x: 97.67, y: 200.0, raio: 225.9}, // Raio aproximado calculado
+	"SSA": {x: 152.0, y: 249.0, raio: 210.1},
+	"ILH": {x: 300.67, y: 101.0, raio: 225.9},
 }
 
-
 var CidadesArray = []string{"FSA", "SSA", "ILH"}
-
 
 // Calcula a distância euclidiana entre dois pontos
 func CalcularDistancia(destino, origem Coordenadas) float64 {

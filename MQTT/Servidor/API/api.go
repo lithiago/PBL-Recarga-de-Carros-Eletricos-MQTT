@@ -9,9 +9,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
+
+var postosMutex sync.Mutex
 
 func ServerAPICommunication(arquivoPontos string) {
 
@@ -137,6 +140,8 @@ func ServerAPICommunication(arquivoPontos string) {
 			return
 		}
 
+		postosMutex.Lock()
+		defer postosMutex.Unlock()
 		postos, err := storage.GetPostosFromJSON(arquivoPontos)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao ler postos"})
@@ -145,12 +150,13 @@ func ServerAPICommunication(arquivoPontos string) {
 
 		for _, p := range postos {
 			if p.Id == req.PostoID {
-				if len(p.Fila) > 0 {
-					// Já existe algum carro na fila, não pode reservar
+				if len(p.Fila) > 0 || p.Pendente != nil {
 					c.JSON(http.StatusOK, gin.H{"result": "abort"})
 					return
 				}
-				// Aqui você pode adicionar o carro como "pendente" se quiser
+				// Marca como pendente
+				p.Pendente = &req.Carro
+				storage.AtualizarArquivo(arquivoPontos, postos)
 				c.JSON(http.StatusOK, gin.H{"result": "ok"})
 				return
 			}
@@ -167,6 +173,8 @@ func ServerAPICommunication(arquivoPontos string) {
 			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
 			return
 		}
+		postosMutex.Lock()
+		defer postosMutex.Unlock()
 
 		postos, err := storage.GetPostosFromJSON(arquivoPontos)
 		if err != nil {
@@ -177,9 +185,12 @@ func ServerAPICommunication(arquivoPontos string) {
 		var postoAtualizado *consts.Posto
 		for _, p := range postos {
 			if p.Id == req.PostoID {
-				// Adiciona o carro à fila (commit efetivo)
-				p.Fila = append(p.Fila, req.Carro)
-				postoAtualizado = p
+				// Só faz commit se o pendente for o mesmo carro
+				if p.Pendente != nil && p.Pendente.ID == req.Carro.ID {
+					p.Fila = append(p.Fila, req.Carro)
+					p.Pendente = nil // limpa pendente
+					postoAtualizado = p
+				}
 				break
 			}
 		}
@@ -206,7 +217,22 @@ func ServerAPICommunication(arquivoPontos string) {
 			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
 			return
 		}
-		// Aqui: desfaça a reserva temporária (ex: remova o carro da fila se estava pendente)
+		postosMutex.Lock()
+		defer postosMutex.Unlock()
+
+		postos, err := storage.GetPostosFromJSON(arquivoPontos)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao ler postos"})
+			return
+		}
+
+		for _, p := range postos {
+			if p.Id == req.PostoID && p.Pendente != nil && p.Pendente.ID == req.Carro.ID {
+				p.Pendente = nil
+				storage.AtualizarArquivo(arquivoPontos, postos)
+				break
+			}
+		}
 		c.JSON(http.StatusOK, gin.H{"result": "aborted"})
 	})
 
