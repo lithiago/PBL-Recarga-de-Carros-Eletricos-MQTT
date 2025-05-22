@@ -7,16 +7,7 @@
       "x": 152,
       "y": 249,
       "custokw": 0.91,
-      "fila": [
-        {
-          "id": "172.24.0.7",
-          "bateria": 60,
-          "x": 332.5584546533886,
-          "y": 123.34789238791721,
-          "capacidadebateria": 60,
-          "consumobateria": 0.2
-        }
-      ]
+      "fila": []
     },
     {
       "id": "SSA02",

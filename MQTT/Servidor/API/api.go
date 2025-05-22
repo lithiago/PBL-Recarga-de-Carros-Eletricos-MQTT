@@ -140,39 +140,30 @@ func ServerAPICommunication(arquivoPontos string) {
 			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
 			return
 		}
+
 		postosMutex.Lock()
 		defer postosMutex.Unlock()
-
 		postos, err := storage.GetPostosFromJSON(arquivoPontos)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao ler postos"})
 			return
 		}
 
-		var postoAtualizado *consts.Posto
 		for _, p := range postos {
 			if p.Id == req.PostoID {
-				// Só faz commit se o pendente for o mesmo carro
-				if p.Pendente != nil && p.Pendente.ID == req.Carro.ID {
-					p.Fila = append(p.Fila, req.Carro)
-					p.Pendente = nil // limpa pendente
-					postoAtualizado = p
+				if len(p.Fila) > 0 || p.Pendente != nil {
+					c.JSON(http.StatusOK, gin.H{"result": "abort"})
+					return
 				}
-				break
+				// Marca como pendente
+				p.Pendente = &req.Carro
+				storage.AtualizarArquivo(arquivoPontos, postos)
+				c.JSON(http.StatusOK, gin.H{"result": "ok"})
+				return
 			}
 		}
 
-		if postoAtualizado == nil {
-			c.JSON(http.StatusNotFound, gin.H{"result": "abort", "error": "Posto não encontrado"})
-			return
-		}
-
-		if err := storage.AtualizarArquivo(arquivoPontos, postos); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao atualizar o arquivo JSON"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"result": "committed"})
+		c.JSON(http.StatusNotFound, gin.H{"result": "abort", "error": "Posto não encontrado"})
 	})
 	r.POST("/2pc/commit", func(c *gin.Context) {
 		var req struct {

@@ -19,7 +19,7 @@ type Posto struct {
 	Y        float64 `json:"y"`
 	CustoKW  float64 `json:"custokw"` // Adicionado
 	Fila     []Carro `json:"fila"`
-	Pendente *Carro  `json:"pendente"`
+	Pendente *Carro `json:"pendente,omitempty"`
 }
 
 type MQTTClient struct {

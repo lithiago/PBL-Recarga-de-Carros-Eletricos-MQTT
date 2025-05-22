@@ -268,6 +268,7 @@ func processIncomingMqttMessages(car *Carro) {
 			}
 			if reserveStatus["status"] == "OK"{
 				log.Println("Reserva bem sucedida")
+				
 			} else if reserveStatus["status"] == "ERRO"{
 				log.Println("Erro ao reserver postos.")
 				log.Println("[SOLICITE OUTRA ROTA]")

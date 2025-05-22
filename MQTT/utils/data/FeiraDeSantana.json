@@ -7,16 +7,7 @@
       "x": 97,
       "y": 204,
       "custokw": 0.94,
-      "fila": [
-        {
-          "id": "172.24.0.7",
-          "bateria": 60,
-          "x": 212.77070394789607,
-          "y": 60.967807606258035,
-          "capacidadebateria": 60,
-          "consumobateria": 0.2
-        }
-      ]
+      "fila": []
     },
     {
       "id": "FSA02",
@@ -25,16 +16,7 @@
       "x": 105,
       "y": 195,
       "custokw": 0.92,
-      "fila": [
-        {
-          "id": "172.24.0.7",
-          "bateria": 60,
-          "x": 204.61887716668653,
-          "y": 180.51482855063512,
-          "capacidadebateria": 60,
-          "consumobateria": 0.2
-        }
-      ]
+      "fila": []
     },
     {
       "id": "FSA03",
@@ -70,16 +52,7 @@
       "x": 95,
       "y": 210,
       "custokw": 0.92,
-      "fila": [
-        {
-          "id": "172.24.0.7",
-          "bateria": 60,
-          "x": 204.61887716668653,
-          "y": 180.51482855063512,
-          "capacidadebateria": 60,
-          "consumobateria": 0.2
-        }
-      ]
+      "fila": []
     },
     {
       "id": "FSA07",

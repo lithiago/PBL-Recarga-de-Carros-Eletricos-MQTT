@@ -161,6 +161,7 @@ func inicializarServidor() Servidor {
 		IP:     ip,
 		Client: mqttClient,
 		Cidade: os.Getenv("CIDADE"),
+		carrosConectados: make(map[string]*ConnectedCarStatus),
 	}
 }
 
@@ -252,6 +253,7 @@ func (S *Servidor) regitrarHandlersMQTT() {
 	})
 	routerServidor.Register(topics.CarroRequestCancel("+", S.IP, S.Cidade), func(payload []byte) {
 		log.Println("[DEBUG] Carro cancelou reserva")
+		
 	})
 	routerServidor.Register(topics.CarroRequestRotas("+", S.Cidade), func(payload []byte) {
 		var conteudoMsg consts.Trajeto
@@ -321,6 +323,9 @@ func (S *Servidor) regitrarHandlersMQTT() {
 	routerServidor.Register(topics.CarroSendsRechargeFinish("+", S.IP, S.Cidade), func(payload []byte) {
 		log.Println("[DEBUG] Carro informou fim de recarga")
 	})
+	routerServidor.Register(topics.CarroDesconectado("+"), func(payload []byte){
+		S.handleCarroDisconnectedMQTT(payload)
+	})
 
 }
 
@@ -331,7 +336,8 @@ func (s *Servidor) handleCarroDisconnectedMQTT(payload []byte) {
 		log.Printf("[SERVIDOR] Erro ao decodificar payload LWT: %v\n", err)
 		return
 	}
-	carroID := disconnectedCarPayload["carro_id"]
+	carroID := disconnectedCarPayload["ID"]
+	log.Printf("Carro ID: %s", carroID)
 	if carroID != "" {
 		log.Printf("[SERVIDOR] Carro %s desconectado inesperadamente. Iniciando processo de limpeza de reservas...\n", carroID)
 		s.processCarroDisconnected(carroID) // Chama a lógica de limpeza
@@ -353,6 +359,7 @@ func (s *Servidor) processCarroDisconnected(carroID string) {
 
 	// Se a reserva foi comitada por ESTE coordenador
 	if carStatus.CommittedReserva != nil && len(carStatus.Participantes2PC) > 0 {
+		log.Println("Entrou")
 		for _, p := range carStatus.Participantes2PC {
 			releasePayload := map[string]interface{}{
 				"posto_id": p.PostoID,
