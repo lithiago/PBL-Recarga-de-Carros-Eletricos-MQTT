@@ -2,6 +2,7 @@ package clientemqtt
 
 import (
 	mqttlib "MQTT/utils/mqttLib/Router"
+	"encoding/json"
 	"log"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -13,8 +14,19 @@ type MQTTClient struct {
 }
 
 
-func NewClient(broker string, router *mqttlib.Router) *MQTTClient {
+
+func NewClient(broker string, router *mqttlib.Router, LWTtopic string, ID string) *MQTTClient {
 	opts := mqtt.NewClientOptions().AddBroker(broker)
+	opts.SetCleanSession(true)
+	lwtPayload := map[string]string{
+		"ID": ID,
+		"Motivo": "Desconexão inesperada",
+	}
+	lwtJSON, err := json.Marshal(lwtPayload)
+	if err !=nil{
+		log.Fatalf("Erro ao serializar LWT Payload.")
+	}
+	opts.SetWill(LWTtopic, string(lwtJSON), 1, false)
 	client := mqtt.NewClient(opts)
 	return &MQTTClient{Client: client, Router: router}
 }

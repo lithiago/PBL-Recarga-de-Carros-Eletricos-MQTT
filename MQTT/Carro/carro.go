@@ -256,6 +256,26 @@ func processIncomingMqttMessages(car *Carro) {
 		} else if strings.HasPrefix(msg.Topic, topics.ServerReserveStatus("+", car.ID)) {
 			msgServer := desserializarMensagem(msg.Payload)
 			fmt.Println("Status de Reserva recebido do IP:", msgServer.ID)
+			reserveStatus := make(map[string]string)
+			for k, v := range msgServer.Conteudo{
+				bytes, _ := json.Marshal(v)
+				var status string
+				err := json.Unmarshal(bytes, &status)
+				if err != nil{
+					log.Println("Erro ao converter para string")
+				}
+				reserveStatus[k] =  status
+			}
+			if reserveStatus["status"] == "OK"{
+				log.Println("Reserva bem sucedida")
+			} else if reserveStatus["status"] == "ERRO"{
+				log.Println("Erro ao reserver postos.")
+				log.Println("[SOLICITE OUTRA ROTA]")
+				log.Println("Cidade destino: ", msgServer.Origem)
+				car.solicitarRota(car.CidadeAtual, msgServer.Origem)
+
+			}
+
 		} else {
 			log.Printf("[Processador MQTT] Tópico desconhecido ou não tratado especificamente: %s\n", msg.Topic)
 		}
@@ -371,9 +391,10 @@ func perguntarUsuario(pergunta string) string {
 
 func main() {
 	log.Println("[CARRO] Inicializando aplicação...")
+	ip, _ := getLocalIP()
 
 	routerCarro := router.NewRouter()
-	mqttClient := *clientemqtt.NewClient(string(consts.Broker), routerCarro)
+	mqttClient := *clientemqtt.NewClient(string(consts.Broker), routerCarro, topics.CarroDesconectado(ip), ip)
 
 	// Conectar ao broker MQTT
 	conn := mqttClient.Connect()
@@ -382,7 +403,6 @@ func main() {
 	}
 	log.Println("[CARRO] Conectado ao broker MQTT.")
 
-	ip, _ := getLocalIP()
 	// Definindo a cidade de origem do carro para o exemplo
 	randomX := rand.Float64()*(355.0-60.0) + 60.0
 	randomY := rand.Float64()*(270.0-50.0) + 50.0
@@ -408,6 +428,8 @@ func main() {
 	go processIncomingMqttMessages(&carro) // Goroutine para processar mensagens MQTT do canal
 	go readUserInput()                     // Goroutine para ler entrada do usuário
 
+
+	
 	for {
 
 		carro.exibirMenu() // Exibe o menu antes de cada prompt de entrada

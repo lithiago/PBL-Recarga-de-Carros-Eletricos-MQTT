@@ -9,9 +9,13 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
+
+var postosMutex sync.Mutex
+
 
 func ServerAPICommunication(arquivoPontos string) {
 
@@ -136,37 +140,8 @@ func ServerAPICommunication(arquivoPontos string) {
 			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
 			return
 		}
-
-		postos, err := storage.GetPostosFromJSON(arquivoPontos)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao ler postos"})
-			return
-		}
-
-		for _, p := range postos {
-			if p.Id == req.PostoID {
-				if len(p.Fila) > 0 {
-					// Já existe algum carro na fila, não pode reservar
-					c.JSON(http.StatusOK, gin.H{"result": "abort"})
-					return
-				}
-				// Aqui você pode adicionar o carro como "pendente" se quiser
-				c.JSON(http.StatusOK, gin.H{"result": "ok"})
-				return
-			}
-		}
-
-		c.JSON(http.StatusNotFound, gin.H{"result": "abort", "error": "Posto não encontrado"})
-	})
-	r.POST("/2pc/commit", func(c *gin.Context) {
-		var req struct {
-			PostoID string       `json:"posto_id"`
-			Carro   consts.Carro `json:"carro"`
-		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
-			return
-		}
+		postosMutex.Lock()
+		defer postosMutex.Unlock()
 
 		postos, err := storage.GetPostosFromJSON(arquivoPontos)
 		if err != nil {
@@ -177,9 +152,55 @@ func ServerAPICommunication(arquivoPontos string) {
 		var postoAtualizado *consts.Posto
 		for _, p := range postos {
 			if p.Id == req.PostoID {
-				// Adiciona o carro à fila (commit efetivo)
-				p.Fila = append(p.Fila, req.Carro)
-				postoAtualizado = p
+				// Só faz commit se o pendente for o mesmo carro
+				if p.Pendente != nil && p.Pendente.ID == req.Carro.ID {
+					p.Fila = append(p.Fila, req.Carro)
+					p.Pendente = nil // limpa pendente
+					postoAtualizado = p
+				}
+				break
+			}
+		}
+
+		if postoAtualizado == nil {
+			c.JSON(http.StatusNotFound, gin.H{"result": "abort", "error": "Posto não encontrado"})
+			return
+		}
+
+		if err := storage.AtualizarArquivo(arquivoPontos, postos); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao atualizar o arquivo JSON"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"result": "committed"})
+	})
+	r.POST("/2pc/commit", func(c *gin.Context) {
+		var req struct {
+			PostoID string       `json:"posto_id"`
+			Carro   consts.Carro `json:"carro"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
+			return
+		}
+		postosMutex.Lock()
+		defer postosMutex.Unlock()
+
+		postos, err := storage.GetPostosFromJSON(arquivoPontos)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao ler postos"})
+			return
+		}
+
+		var postoAtualizado *consts.Posto
+		for _, p := range postos {
+			if p.Id == req.PostoID {
+				// Só faz commit se o pendente for o mesmo carro
+				if p.Pendente != nil && p.Pendente.ID == req.Carro.ID {
+					p.Fila = append(p.Fila, req.Carro)
+					p.Pendente = nil // limpa pendente
+					postoAtualizado = p
+				}
 				break
 			}
 		}
@@ -206,8 +227,74 @@ func ServerAPICommunication(arquivoPontos string) {
 			c.JSON(http.StatusBadRequest, gin.H{"result": "abort", "error": "Dados inválidos"})
 			return
 		}
-		// Aqui: desfaça a reserva temporária (ex: remova o carro da fila se estava pendente)
+		postosMutex.Lock()
+		defer postosMutex.Unlock()
+
+		postos, err := storage.GetPostosFromJSON(arquivoPontos)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"result": "abort", "error": "Erro ao ler postos"})
+			return
+		}
+
+		for _, p := range postos {
+			if p.Id == req.PostoID && p.Pendente != nil && p.Pendente.ID == req.Carro.ID {
+				p.Pendente = nil
+				storage.AtualizarArquivo(arquivoPontos, postos)
+				break
+			}
+		}
 		c.JSON(http.StatusOK, gin.H{"result": "aborted"})
+	})
+
+	r.POST("/2pc/release", func(c *gin.Context){
+		var req struct {
+			PostoID string       `json:"posto_id"`
+			Carro   consts.Carro `json:"carro"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": "Dados inválidos"})
+			return
+		}
+	
+		postos, err := storage.GetPostosFromJSON(arquivoPontos)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": "Erro ao ler postos"})
+			return
+		}
+	
+		postoEncontrado := false
+		for _, p := range postos {
+			if p.Id == req.PostoID {
+				newFila := []consts.Carro{}
+				removed := false
+				for _, fCarro := range p.Fila {
+					if fCarro.ID == req.Carro.ID { // Remove o carro específico
+						removed = true
+					} else {
+						newFila = append(newFila, fCarro)
+					}
+				}
+				p.Fila = newFila
+				postoEncontrado = true
+				if removed {
+					log.Printf("[API - RELEASE] Carro %s removido do posto %s por requisição de LIBERAÇÃO.\n", req.Carro.ID, req.PostoID)
+				} else {
+					log.Printf("[API - RELEASE] Carro %s não encontrado na fila do posto %s, mas requisição de LIBERAÇÃO recebida.\n", req.Carro.ID, req.PostoID)
+				}
+				break
+			}
+		}
+	
+		if !postoEncontrado {
+			c.JSON(http.StatusNotFound, gin.H{"status": "error", "message": "Posto não encontrado"})
+			return
+		}
+	
+		if err := storage.AtualizarArquivo(arquivoPontos, postos); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": "Erro ao atualizar o arquivo JSON"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Posto liberado."})
 	})
 
 	// Inicia o servidor HTTP na porta 8080

@@ -11,7 +11,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -21,7 +24,18 @@ type Servidor struct {
 	Cidade string
 	Client clientemqtt.MQTTClient
 	Pontos map[string][]*consts.Posto
+	carrosConectados map[string]*ConnectedCarStatus
+	carrosConectadosMutex sync.Mutex
+
 }
+
+type ConnectedCarStatus struct {
+    LastActivity       time.Time
+    ReservedPostoID    string // Primeiro posto ou posto local
+    CommittedReserva   *consts.Reserva // A reserva completa que foi comitada
+    Participantes2PC   []consts.Participante2PC // Os participantes originais do 2PC
+}
+
 
 var (
 	arquivoPontos = os.Getenv("ARQUIVO_JSON")
@@ -50,6 +64,7 @@ func (s *Servidor) AssinarEventosDoCarro() {
 		topics.CarroRequestStatus("+", s.IP, s.Cidade),
 		topics.CarroRequestCancel("+", s.IP, s.Cidade),
 		topics.CarroRequestRotas("+", s.Cidade),
+		topics.CarroDesconectado("+"),
 	}
 	for _, topic := range topicsToSubscribe {
 		log.Printf("[SERVIDOR] Assinando tópico: %s", topic)
@@ -126,18 +141,21 @@ func (s *Servidor) adicionarAoArquivo(path string, novoDado interface{}) error {
 }
 
 func inicializarServidor() Servidor {
+	ip, err := consts.GetLocalIP()
+	if err != nil {
+		log.Printf("Erro ao obter IP local: %v", err)
+	}
+	
 	routerServidor := router.NewRouter()
-	mqttClient := *clientemqtt.NewClient(string(consts.Broker), routerServidor)
+
+	mqttClient := *clientemqtt.NewClient(string(consts.Broker), routerServidor, topics.ServerDesconectado(ip), ip)
 
 	token := mqttClient.Connect()
 	if token.Wait() && token.Error() != nil {
 		log.Fatalf("Erro ao conectar ao broker: %v", token.Error())
 	}
 
-	ip, err := consts.GetLocalIP()
-	if err != nil {
-		log.Printf("Erro ao obter IP local: %v", err)
-	}
+	
 
 	return Servidor{
 		IP:     ip,
@@ -218,6 +236,16 @@ func (S *Servidor) regitrarHandlersMQTT() {
 				ID:     S.IP,
 			}
 			S.Client.Publish(topic, serializarMensagem(msg))
+			// --- CHAVE: Armazenar o estado da reserva no Coordenador após o COMMIT ---
+			S.carrosConectadosMutex.Lock()
+			if _, ok := S.carrosConectados[reserva.Carro.ID]; !ok {
+				S.carrosConectados[reserva.Carro.ID] = &ConnectedCarStatus{}
+			}
+			S.carrosConectados[reserva.Carro.ID].CommittedReserva = &reserva       // Armazena a reserva completa
+			S.carrosConectados[reserva.Carro.ID].Participantes2PC = participantes // Armazena os participantes
+			S.carrosConectados[reserva.Carro.ID].LastActivity = time.Now()         // Atualiza a atividade
+			S.carrosConectadosMutex.Unlock()
+
 		}
 		log.Println("Publicou no topico: ", topic)
 
@@ -295,6 +323,95 @@ func (S *Servidor) regitrarHandlersMQTT() {
 	})
 
 }
+
+func (s *Servidor) handleCarroDisconnectedMQTT(payload []byte) {
+	log.Printf("[SERVIDOR] Recebeu mensagem LWT: Payload='%s'\n", string(payload))
+	var disconnectedCarPayload map[string]string
+	if err := json.Unmarshal(payload, &disconnectedCarPayload); err != nil {
+		log.Printf("[SERVIDOR] Erro ao decodificar payload LWT: %v\n", err)
+		return
+	}
+	carroID := disconnectedCarPayload["carro_id"]
+	if carroID != "" {
+		log.Printf("[SERVIDOR] Carro %s desconectado inesperadamente. Iniciando processo de limpeza de reservas...\n", carroID)
+		s.processCarroDisconnected(carroID) // Chama a lógica de limpeza
+	}
+}
+
+func (s *Servidor) processCarroDisconnected(carroID string) {
+	s.carrosConectadosMutex.Lock()
+	carStatus, exists := s.carrosConectados[carroID]
+	if !exists {
+		s.carrosConectadosMutex.Unlock()
+		log.Printf("[SERVIDOR] Carro %s desconectado, mas não tinha reserva ativa registrada por ESTE COORDENADOR.\n", carroID)
+		return
+	}
+	delete(s.carrosConectados, carroID) // Remove do mapa de carros ativos
+	s.carrosConectadosMutex.Unlock()        // Libera o lock cedo se a operação remota for demorada
+
+	log.Printf("[SERVIDOR] Carro %s desconectado inesperadamente. Iniciando limpeza de reserva comitada.\n", carroID)
+
+	// Se a reserva foi comitada por ESTE coordenador
+	if carStatus.CommittedReserva != nil && len(carStatus.Participantes2PC) > 0 {
+		for _, p := range carStatus.Participantes2PC {
+			releasePayload := map[string]interface{}{
+				"posto_id": p.PostoID,
+				"carro":    carStatus.CommittedReserva.Carro,
+			}
+			releaseJSON, _ := json.Marshal(releasePayload)
+
+			// CORREÇÃO: Enviar requisição HTTP para o endpoint /2pc/release
+			resp, err := http.Post(p.URL + "/2pc/release", "application/json", strings.NewReader(string(releaseJSON)))
+			if err != nil {
+				log.Printf("[SERVIDOR] ERRO: Falha ao enviar requisição de LIBERAÇÃO para %s (posto %s): %v\n", p.URL, p.PostoID, err)
+			} else {
+				resp.Body.Close()
+				log.Printf("[SERVIDOR] Enviado LIBERAÇÃO para %s (posto %s) para carro %s. Resposta: %s\n", p.URL, p.PostoID, carroID, resp.Status)
+			}
+		}
+	} else {
+		log.Printf("[SERVIDOR] Carro %s desconectado, mas não tinha reserva multi-servidor comitada ativa neste coordenador.\n", carroID)
+	}
+
+	// Lógica para liberar postos LOCAIS que este servidor gerencia (se o carro estava em um deles)
+	// Isso é necessário porque o LWT chega a TODOS os servidores assinados no tópico LWT.
+	// Cada servidor deve verificar se o carro estava em UM POSTO QUE ELE GERENCIA.
+	postosLocais, err := storage.GetPostosFromJSON(os.Getenv("ARQUIVO_JSON")) // Use a variável global
+	if err != nil {
+		log.Printf("[SERVIDOR] Erro ao ler postos locais para limpeza de %s: %v\n", carroID, err)
+		return
+	}
+
+	postoLocalAtualizado := false
+	for _, p := range postosLocais {
+		// Verifica se o carro está na fila deste posto local
+		newFila := []consts.Carro{}
+		carRemovedFromLocalFila := false
+		for _, c := range p.Fila {
+			if c.ID != carroID {
+				newFila = append(newFila, c)
+			} else {
+				carRemovedFromLocalFila = true
+			}
+		}
+		if carRemovedFromLocalFila {
+			p.Fila = newFila
+			postoLocalAtualizado = true
+			log.Printf("[SERVIDOR] Carro %s removido da fila do posto LOCAL %s (%s) devido à desconexão.\n", carroID, p.Nome, p.Id)
+		}
+	}
+
+	if postoLocalAtualizado {
+		if err := storage.AtualizarArquivo(os.Getenv("ARQUIVO_JSON"), postosLocais); err != nil {
+			log.Printf("[SERVIDOR] Erro ao atualizar posto local após desconexão de %s: %v\n", carroID, err)
+		} else {
+			log.Printf("[SERVIDOR] Arquivo de postos locais atualizado após limpeza para carro %s.", carroID)
+		}
+	}
+}
+
+
+
 
 func main() {
 	log.Println("[SERVIDOR] Inicializando...")
