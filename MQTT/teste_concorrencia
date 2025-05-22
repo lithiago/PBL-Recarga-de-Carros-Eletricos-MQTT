@@ -1,0 +1,79 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"sync"
+)
+
+type Carro struct {
+	ID                string  `json:"id"`
+	Bateria           float64 `json:"bateria"`
+	X                 float64 `json:"x"`
+	Y                 float64 `json:"y"`
+	CapacidadeBateria float64 `json:"capacidadebateria"`
+	Consumobateria    float64 `json:"consumobateria"`
+}
+
+type Participante2PC struct {
+	PostoID string `json:"postoID"`
+	URL     string `json:"url"`
+}
+
+type ReservaRequest struct {
+	Carro         Carro             `json:"carro"`
+	Participantes []Participante2PC `json:"participantes"`
+}
+
+func main() {
+	url := "http://localhost:8080/reserva" // ajuste se necessário
+	numRequests := 100                     // número de requisições concorrentes
+
+	var wg sync.WaitGroup
+	wg.Add(numRequests)
+
+	for i := 0; i < numRequests; i++ {
+		go func(i int) {
+			defer wg.Done()
+
+			reqBody := ReservaRequest{
+				Carro: Carro{
+					ID:                fmt.Sprintf("carro-teste-%d", i),
+					Bateria:           50.0,
+					X:                 100.0 + float64(i),
+					Y:                 200.0 + float64(i),
+					CapacidadeBateria: 60.0,
+					Consumobateria:    0.2,
+				},
+				Participantes: []Participante2PC{
+					{PostoID: "FSA01", URL: "http://servidor-feiradesantana:8080"},
+					{PostoID: "SSA01", URL: "http://servidor-salvador:8082"},
+					{PostoID: "IL01", URL: "http://servidor-ilheus:8081"},
+				},
+			}
+
+			jsonData, err := json.Marshal(reqBody)
+			if err != nil {
+				fmt.Printf("[ERRO %d] Marshal: %v\n", i, err)
+				return
+			}
+
+			resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+			if err != nil {
+				fmt.Printf("[ERRO %d] POST: %v\n", i, err)
+				return
+			}
+			defer resp.Body.Close()
+
+			var result map[string]interface{}
+			json.NewDecoder(resp.Body).Decode(&result)
+
+			fmt.Printf("[RESPOSTA %d] Status: %d, Body: %v\n", i, resp.StatusCode, result)
+		}(i)
+	}
+
+	wg.Wait()
+	fmt.Println("Testes de concorrência finalizados.")
+}
